@@ -1,8 +1,1 @@
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
-# TumorParallelization
+Tumor Paralleization research Git
