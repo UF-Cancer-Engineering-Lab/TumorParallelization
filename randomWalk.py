@@ -15,7 +15,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # ----------------------------------------- Program Parameters --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # defining parameters of the simulation
-n = 15  # number of timeSteps
+n = 5  # number of timeSteps
 maxTries = 6  # max tries for a particle to move
 particlesNumber = 800  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
@@ -23,6 +23,67 @@ porosityFraction = 0.05  # porosity fraction of particles,
 # each "particle", or "cell" has some void space in it
 capillaryRadius = 3  # radius of x and y axes capilarry freeways
 sphereRadius = 5
+
+# ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# child variables
+vacancies = round(particlesNumber * porosityFraction)
+totalPositions = particlesNumber + vacancies
+
+# creating full array
+x = 0
+y = 0
+z = 0
+initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
+# From the panda library, a Data frame is just a c++ maps that are in the form of arrays
+
+
+# This while loop is getting all the x, y, z integer values insde of 3D sphere (in all 8 3D quadrants). Each of these combination of x,y,z values,
+# of which there are ~840, will be the vector components of a vector whose magnitude is an integer, conforming to a radius of a smaller sphere than the original one
+# set in the limit
+
+# initialSphere.index returns total rows in the initialSphere dataFrame
+while (
+    len(initialSphere.index) < totalPositions
+):  # len(initialSphere.index) is the number of total rows in the DataFrame
+    print("Loading initial sphere")
+    initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
+    sphereRadius = sphereRadius + 1
+    for z in range(-sphereRadius, sphereRadius + 1):  # initially (-6,6)
+        xMax = int(
+            math.sqrt(sphereRadius**2 - z**2 - 0**2)
+        )  # initially z = -6 #these xMax values appy for
+        # print(z)
+        for x in range(-xMax, xMax + 1):
+            yMax = int(math.sqrt(sphereRadius**2 - z**2 - x**2))
+            # print(x,yMax)
+            for y in range(-yMax, yMax + 1):
+                initialSphere = initialSphere.append(
+                    {"x": x, "y": y, "z": z}, ignore_index=True
+                )
+                # print(len(initialSphere.index))
+
+
+squaredRadius = sphereRadius**2
+squaredCapillaryRadius = capillaryRadius**2
+totalPositions = len(initialSphere.index)
+vacancies = round(totalPositions * porosityFraction)
+print("Initial sphere complete")
+
+# this randomizes the areas where the particles can and cannot go in the sphere
+for i in range(1, vacancies + 1):
+    val = random.randint(0, len(initialSphere.index + 1))
+    initialSphere = initialSphere.drop(labels=val, axis=0).reset_index(drop=True)
+    # ^^^ .reset_index method just recalculates the indices so that the gap in indices isn't there anymore
+
+# creating two array for containing x and y coordinate
+# of size equals to the number of size and filled up with 0's
+particles = [initialSphere]  # particles is now a list with single entry containing the x,y,z coordinates of the sphere
+
+
+
+
+
 
 # ----------------------------------------- Voxel Framework --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Voxel Code: (max space = initial radius + number of time steps = 106, round to 105):
@@ -87,63 +148,10 @@ def hash(x):
     return ((x + 0.5) / voxel_length) + (dimension / 2)
 
 
-# ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-# child variables
-vacancies = round(particlesNumber * porosityFraction)
-totalPositions = particlesNumber + vacancies
-
-# creating full array
-x = 0
-y = 0
-z = 0
-initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
-# From the panda library, a Data frame is just a c++ maps that are in the form of arrays
 
 
-# This while loop is getting all the x, y, z integer values insde of 3D sphere (in all 8 3D quadrants). Each of these combination of x,y,z values,
-# of which there are ~840, will be the vector components of a vector whose magnitude is an integer, conforming to a radius of a smaller sphere than the original one
-# set in the limit
-
-# initialSphere.index returns total rows in the initialSphere dataFrame
-while (
-    len(initialSphere.index) < totalPositions
-):  # len(initialSphere.index) is the number of total rows in the DataFrame
-    print("Loading initial sphere")
-    initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
-    sphereRadius = sphereRadius + 1
-    for z in range(-sphereRadius, sphereRadius + 1):  # initially (-6,6)
-        xMax = int(
-            math.sqrt(sphereRadius**2 - z**2 - 0**2)
-        )  # initially z = -6 #these xMax values appy for
-        # print(z)
-        for x in range(-xMax, xMax + 1):
-            yMax = int(math.sqrt(sphereRadius**2 - z**2 - x**2))
-            # print(x,yMax)
-            for y in range(-yMax, yMax + 1):
-                initialSphere = initialSphere.append(
-                    {"x": x, "y": y, "z": z}, ignore_index=True
-                )
-                # print(len(initialSphere.index))
 
 
-squaredRadius = sphereRadius**2
-squaredCapillaryRadius = capillaryRadius**2
-totalPositions = len(initialSphere.index)
-vacancies = round(totalPositions * porosityFraction)
-print("Initial sphere complete")
-
-# this randomizes the areas where the particles can and cannot go in the sphere
-for i in range(1, vacancies + 1):
-    val = random.randint(0, len(initialSphere.index + 1))
-    initialSphere = initialSphere.drop(labels=val, axis=0).reset_index(drop=True)
-    # ^^^ .reset_index method just recalculates the indices so that the gap in indices isn't there anymore
-
-# creating two array for containing x and y coordinate
-# of size equals to the number of size and filled up with 0's
-particles = [
-    initialSphere
-]  # particles is now a list with single entry containing the x,y,z coordinates of the sphere
 
 
 # ------------------------- Assigning initial particle position to appropriate voxels: ------------------------------------------------
