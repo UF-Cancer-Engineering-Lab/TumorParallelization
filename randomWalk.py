@@ -6,18 +6,19 @@ from cmath import sqrt
 import logging
 import math
 import numpy as np
-import pylab
 import random
 import pandas
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import plotly.graph_objects as go
+import time
+import numba
+from numba import cuda
+from numba import njit
 
 # ----------------------------------------- Program Parameters --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # defining parameters of the simulation
-n = 5  # number of timeSteps
+n = 10  # number of timeSteps
 maxTries = 6  # max tries for a particle to move
-particlesNumber = 800  # initial particle count
+particlesNumber = 100  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
 # where porosity fraction is the ratio of void volume to total volume
 # each "particle", or "cell" has some void space in it
@@ -25,7 +26,6 @@ capillaryRadius = 3  # radius of x and y axes capilarry freeways
 sphereRadius = 5
 
 # ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 # child variables
 vacancies = round(particlesNumber * porosityFraction)
 totalPositions = particlesNumber + vacancies
@@ -58,11 +58,10 @@ while (
             yMax = int(math.sqrt(sphereRadius**2 - z**2 - x**2))
             # print(x,yMax)
             for y in range(-yMax, yMax + 1):
-                initialSphere = initialSphere.append(
-                    {"x": x, "y": y, "z": z}, ignore_index=True
-                )
-                # print(len(initialSphere.index))
-
+                # initialSphere = initialSphere.append(
+                #     , ignore_index=True
+                # )
+                initialSphere.loc[len(initialSphere.index)] = [x, y, z]
 
 squaredRadius = sphereRadius**2
 squaredCapillaryRadius = capillaryRadius**2
@@ -78,11 +77,9 @@ for i in range(1, vacancies + 1):
 
 # creating two array for containing x and y coordinate
 # of size equals to the number of size and filled up with 0's
-particles = [initialSphere]  # particles is now a list with single entry containing the x,y,z coordinates of the sphere
-
-
-
-
+particles = [
+    initialSphere
+]  # particles is now a list with single entry containing the x,y,z coordinates of the sphere
 
 
 # ----------------------------------------- Voxel Framework --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -148,13 +145,8 @@ def hash(x):
     return ((x + 0.5) / voxel_length) + (dimension / 2)
 
 
-
-
-
-
-
-
 # ------------------------- Assigning initial particle position to appropriate voxels: ------------------------------------------------
+startTime = time.perf_counter()
 for particleN in initialSphere.index:
     x = initialSphere["x"].iloc[particleN]
     y = initialSphere["y"].iloc[particleN]
@@ -293,34 +285,79 @@ for i in range(1, n + 1):
 
     print("Time steps elapsed: " + str(i))
 
-
+print("Time to complete simulation (s): " + str(time.perf_counter() - startTime))
 print("Simulation complete. Calculating mean squared displacement")
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# pylab.title("Random Walk ($n = " + str(n) + "$ steps)")
-pylab.title("Random Walk ($n = " + str(3) + "$ steps)")
-ax = pylab.axes(projection="3d")
-frame = -1
-x = particles[frame]["x"].tolist()
-y = particles[frame]["y"].tolist()
-z = particles[frame]["z"].tolist()
+def plotCellData(particles, data):
+    # pylab.title("Random Walk ($n = " + str(n) + "$ steps)")
+    # Gather the position of each cell and distance to origin
+    frame = -1
+    x = particles[frame]["x"]
+    y = particles[frame]["y"]
+    z = particles[frame]["z"]
+    color = []
 
-# Each matrix for x,y,z is a 11 x 11 x 11 matrix, for a voxel array of [10, 10, 10]
-axis_x = space[0]
-axis_y = space[1]
-axis_z = space[2]
+    for (xVal, yVal, zVal) in zip(x, y, z):
+        color.append(
+            abs(sqrt(xVal**2 + yVal**2 + zVal**2))
+        )  # color based on distance to origin
+    color = pandas.Series(color, copy=False)
 
-# This function plots the voxels:
-# we have to create a 3D array for the first 3 parameters. The x-parameter will handle the first matrix of
-# this 3D array, the y-parameter will handle to 2nd matrix of this 3d matrix, and the z-parameter will handle
-# the 3rd matrix of this 3D-array
-ax.voxels(axis_x, axis_y, axis_z, data, edgecolor="k", facecolors=colors, alpha=0.5)
-ax.scatter(x, y, z, c=z, cmap="viridis", linewidth=3)
+    # Draw a scatter plot of cell positions
+    # With color scale based on distance moved from origin for each cell
+    fig = go.Figure(
+        go.Scatter3d(
+            x=x,
+            y=y,
+            z=z,
+            marker=go.scatter3d.Marker(
+                size=3, color=color, colorscale="Viridis", opacity=0.8
+            ),
+            opacity=0.8,
+            mode="markers",
+        )
+    )
+
+    voxel_positions_x = []
+    voxel_positions_y = []
+    voxel_positions_z = []
+
+    # Gather the coordinates of the voxels that moves
+    for i in range(len(data)):
+        for j in range(len(data[0])):
+            for k in range(len(data[1])):
+                if data[i][j][k] == 1:
+                    voxel_positions_x.append(i - dimension / 2)
+                    voxel_positions_y.append(j - dimension / 2)
+                    voxel_positions_z.append(k - dimension / 2)
+
+    # # This function plots the voxels:
+    # # we have to create a 3D array for the first 3 parameters. The x-parameter will handle the first matrix of
+    # # this 3D array, the y-parameter will handle to 2nd matrix of this 3d matrix, and the z-parameter will handle
+    # # the 3rd matrix of this 3D-array
+    # Draw a voxel (cube) for each voxel that moved
+    # for (xVal, yVal, zVal) in zip(
+    #     voxel_positions_x, voxel_positions_y, voxel_positions_z
+    # ):
+    #     fig.add_mesh3d(
+    #         # 8 vertices of a cube
+    #         x=[xVal + coord for coord in [0, 0, 1, 1, 0, 0, 1, 1]],
+    #         y=[yVal + coord for coord in [0, 1, 1, 0, 0, 1, 1, 0]],
+    #         z=[zVal + coord for coord in [0, 0, 0, 0, 1, 1, 1, 1]],
+    #         # i, j and k give the vertices of triangles
+    #         i=[7, 0, 0, 0, 4, 4, 6, 6, 4, 0, 3, 2],
+    #         j=[3, 4, 1, 2, 5, 6, 5, 2, 0, 1, 6, 3],
+    #         k=[0, 7, 2, 3, 6, 7, 1, 1, 5, 5, 7, 6],
+    #         opacity=0.1,
+    #         color="blue",
+    #     )
+
+    fig.show()
 
 
-pylab.show()
-
+plotCellData(particles, data)
 
 # ----------------------------------------- Calculate MSD --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
