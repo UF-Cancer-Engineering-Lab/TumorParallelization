@@ -26,6 +26,8 @@ capillaryRadius = 3  # radius of x and y axes capilarry freeways
 sphereRadius = 5
 
 # ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+startTime = time.perf_counter()
+
 # child variables
 vacancies = round(particlesNumber * porosityFraction)
 totalPositions = particlesNumber + vacancies
@@ -81,95 +83,6 @@ particles = [
     initialSphere
 ]  # particles is now a list with single entry containing the x,y,z coordinates of the sphere
 
-
-# ----------------------------------------- Voxel Framework --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Voxel Code: (max space = initial radius + number of time steps = 106, round to 105):
-
-# but first, try it with a 6 by 6 by 6 space
-voxel_length = 2  # meaning divide space up into 1 by 1 by 1
-dimension = n + sphereRadius + 1
-
-
-class Voxel:
-
-    # length = voxelDivision  # static variable: all objects of the class cube will have a fixed length
-
-    def __init__(self):
-        self.list_particles = []
-
-
-# if initialze voxel_array using np.ones(), then it'll be an array of integers. Instead,
-# use the np.empty() method to initalize an array with uninitialized entries!
-voxel_array = [
-    [[Voxel() for i in range(dimension)] for j in range(dimension)]
-    for k in range(dimension)
-]
-
-
-# code to create space for voxels; will wrap in a method/class soon
-space = np.indices((dimension + 1, dimension + 1, dimension + 1), dtype=float)
-space[0] = (voxel_length * (space[0] - (dimension / 2))) - 0.5
-space[1] = (voxel_length * (space[1] - (dimension / 2))) - 0.5
-space[2] = (voxel_length * (space[2] - (dimension / 2))) - 0.5
-
-# Define matrix for colors of each voxel:
-data = np.zeros([dimension, dimension, dimension])
-colors = np.empty((dimension, dimension, dimension), dtype=object)
-colors[:][:][:] = "blue"
-
-
-# given a particles coordinates, find the nearest voxel_corner
-def find_nearest_corner(x, y, z):
-    # list of all corners:
-    voxel_corners = space[2][0][0][0:dimension]
-    while sum(voxel_corners == x) != 1:
-        x -= 0.5
-    while sum(voxel_corners == y) != 1:
-        y -= 0.5
-    while sum(voxel_corners == z) != 1:
-        z -= 0.5
-
-    corner_x = x
-    corner_y = y
-    corner_z = z
-
-    return [corner_x, corner_y, corner_z]
-
-
-# Hash Function: whatever a voxels corner is, it's position in the array is for a_i E {x, y, z}:
-# ((a_i + 0.5)/2) + 5 [<- inverse function], for all ai. This transformation, now called b_i, is the position of the voxel
-# in array "data", by index [b_1, b_2, b_3]
-
-
-def hash(x):
-    return ((x + 0.5) / voxel_length) + (dimension / 2)
-
-
-# ------------------------- Assigning initial particle position to appropriate voxels: ------------------------------------------------
-startTime = time.perf_counter()
-for particleN in initialSphere.index:
-    x = initialSphere["x"].iloc[particleN]
-    y = initialSphere["y"].iloc[particleN]
-    z = initialSphere["z"].iloc[particleN]
-
-    # Voxel stuff
-    a_particle = [particleN, x, y, z]
-    nearest_corner = find_nearest_corner(x, y, z)
-
-    voxel_indice_x = int(hash(nearest_corner[0]))
-    voxel_indice_y = int(hash(nearest_corner[1]))
-    voxel_indice_z = int(hash(nearest_corner[2]))
-
-    # print("Particle",particleN,":", x, y, z)
-    # print("Nearest Corner:", nearest_corner[0], nearest_corner[1], nearest_corner[2])
-    # print("Particle",particleN,"'s Voxel Indice:", voxel_indice_x, voxel_indice_y, voxel_indice_z)
-    # print("\n")
-
-    voxel_array[voxel_indice_x][voxel_indice_y][voxel_indice_z].list_particles += [
-        a_particle
-    ]
-
-
 # random walking
 # for i in range(1,n+1):
 for i in range(1, n + 1):
@@ -214,71 +127,26 @@ for i in range(1, n + 1):
                     (particles[i - 1]["x"] == x)
                     & (particles[i - 1]["y"] == y)
                     & (particles[i - 1]["z"] == z)
-                ).any(axis=0)
+                ).any(
+                    axis=0
+                )  # If any particle was in this position last timestep
                 or (
                     (particles[i]["x"] == x)
                     & (particles[i]["y"] == y)
                     & (particles[i]["z"] == z)
-                ).any(axis=0)
+                ).any(
+                    axis=0
+                )  # If any particle was in this position this timestep
                 or ~(
                     (x_2 + y_2 + z_2) < squaredRadius
                     or (x_2 + z_2) < squaredCapillaryRadius
                     or (y_2 + z_2) < squaredCapillaryRadius
-                )
+                )  # If outside the capillary radius
             ):
                 particles[i].at[particleN, "x"] = x
                 particles[i].at[particleN, "y"] = y
                 particles[i].at[particleN, "z"] = z
                 tries = maxTries
-
-                # Voxel stuff: If particle updates its position in space, update it's voxel position:
-                a_particle = [particleN, x, y, z]
-                nearest_corner = find_nearest_corner(x, y, z)
-
-                voxel_indice_x = int(hash(nearest_corner[0]))
-                voxel_indice_y = int(hash(nearest_corner[1]))
-                voxel_indice_z = int(hash(nearest_corner[2]))
-
-                # if i >= 4:
-                #     print("Inserting", particleN, "into voxel array: ", voxel_indice_x, voxel_indice_y, voxel_indice_z)
-
-                voxel_array[voxel_indice_x][voxel_indice_y][
-                    voxel_indice_z
-                ].list_particles += [a_particle]
-
-                # Extra: turn this particle's voxel's position to "1" to track it in the simulation:
-
-                data[voxel_indice_x][voxel_indice_y][voxel_indice_z] = 1
-
-                # print("Particle",particleN,":", x, y, z)
-                # print("Nearest Corner:", nearest_corner[0], nearest_corner[1], nearest_corner[2])
-                # print("Particle",particleN,"'s Voxel Indice:", voxel_indice_x, voxel_indice_y, voxel_indice_z)
-                # print("\n")
-
-                # Now, clear that particle's previous voxel position, using it;s i-1 Pandas dataFrame:
-
-                # Retrieve old x,y,z coordinates of the particle
-                old_x = particles[i - 1].at[particleN, "x"]
-                old_y = particles[i - 1].at[particleN, "y"]
-                old_z = particles[i - 1].at[particleN, "z"]
-
-                # Find identifying voxel it's in, by finding nearest_corner
-                old_nearest_corner = find_nearest_corner(old_x, old_y, old_z)
-
-                # Find indices of voxel that it was previously in using hash function:
-                old_voxel_indice_x = int(hash(old_nearest_corner[0]))
-                old_voxel_indice_y = int(hash(old_nearest_corner[1]))
-                old_voxel_indice_z = int(hash(old_nearest_corner[2]))
-
-                # print("Particle",particleN, i, "old pos:", old_x, old_y, old_z)
-                # print("Nearest Corner:", nearest_corner[0], nearest_corner[1], nearest_corner[2])
-                # print("Particle",particleN,"'s Voxel Indice:", voxel_indice_x, voxel_indice_y, voxel_indice_z)
-                # print("\n")
-
-                # clear that particle's entry from voxel's particle list using the .remove() function:
-                voxel_array[old_voxel_indice_x][old_voxel_indice_y][
-                    old_voxel_indice_z
-                ].list_particles.remove([particleN, old_x, old_y, old_z])
 
             else:
                 tries = tries + 1
@@ -290,7 +158,7 @@ print("Simulation complete. Calculating mean squared displacement")
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particles, data):
+def plotCellData(particles):
     # pylab.title("Random Walk ($n = " + str(n) + "$ steps)")
     # Gather the position of each cell and distance to origin
     frame = -1
@@ -320,44 +188,10 @@ def plotCellData(particles, data):
         )
     )
 
-    voxel_positions_x = []
-    voxel_positions_y = []
-    voxel_positions_z = []
-
-    # Gather the coordinates of the voxels that moves
-    for i in range(len(data)):
-        for j in range(len(data[0])):
-            for k in range(len(data[1])):
-                if data[i][j][k] == 1:
-                    voxel_positions_x.append(i - dimension / 2)
-                    voxel_positions_y.append(j - dimension / 2)
-                    voxel_positions_z.append(k - dimension / 2)
-
-    # # This function plots the voxels:
-    # # we have to create a 3D array for the first 3 parameters. The x-parameter will handle the first matrix of
-    # # this 3D array, the y-parameter will handle to 2nd matrix of this 3d matrix, and the z-parameter will handle
-    # # the 3rd matrix of this 3D-array
-    # Draw a voxel (cube) for each voxel that moved
-    # for (xVal, yVal, zVal) in zip(
-    #     voxel_positions_x, voxel_positions_y, voxel_positions_z
-    # ):
-    #     fig.add_mesh3d(
-    #         # 8 vertices of a cube
-    #         x=[xVal + coord for coord in [0, 0, 1, 1, 0, 0, 1, 1]],
-    #         y=[yVal + coord for coord in [0, 1, 1, 0, 0, 1, 1, 0]],
-    #         z=[zVal + coord for coord in [0, 0, 0, 0, 1, 1, 1, 1]],
-    #         # i, j and k give the vertices of triangles
-    #         i=[7, 0, 0, 0, 4, 4, 6, 6, 4, 0, 3, 2],
-    #         j=[3, 4, 1, 2, 5, 6, 5, 2, 0, 1, 6, 3],
-    #         k=[0, 7, 2, 3, 6, 7, 1, 1, 5, 5, 7, 6],
-    #         opacity=0.1,
-    #         color="blue",
-    #     )
-
     fig.show()
 
 
-plotCellData(particles, data)
+plotCellData(particles)
 
 # ----------------------------------------- Calculate MSD --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -414,27 +248,3 @@ plotCellData(particles, data)
 
 # print("PNGs printing complete")
 # plt.close("all")
-
-
-def print_voxel(x, y, z):
-    for i in range(x):
-        for j in range(y):
-            for k in range(z):
-                print(
-                    "At Voxel ",
-                    "[",
-                    i,
-                    "]",
-                    "[",
-                    j,
-                    "]",
-                    "[",
-                    k,
-                    "]: \n",
-                )
-                particle_array = voxel_array[i][j][k].particles
-                for q in range(len(particle_array)):
-                    print("Particle ", q, ":")
-                    print("X: ", particle_array[q][0])
-                    print("Y: ", particle_array[q][1])
-                    print("Z: ", particle_array[q][2])
