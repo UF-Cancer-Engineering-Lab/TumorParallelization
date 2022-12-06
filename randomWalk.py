@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from config import *
 from numba import jit
+from octTreeCPU import *
 
 # -----------------------------------------functions for walk algorithms: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def getInitialSphere(
@@ -161,14 +162,92 @@ def randomWalkCPU(
     return particles
 
 
+def randomWalkCPUOctTree(
+    n=n,
+    maxTries=maxTries,
+    particlesNumber=particlesNumber,
+    porosityFraction=porosityFraction,
+    sphereRadius=sphereRadius,
+    capillaryRadius=capillaryRadius,
+):
+
+    # Constraints for cell movement
+    squaredRadius = sphereRadius**2
+    squaredCapillaryRadius = capillaryRadius**2
+
+    # creating two array for containing x and y coordinate
+    # of size equals to the number of size and filled up with 0's
+    initialSphere = getInitialSphere(particlesNumber, porosityFraction, sphereRadius)
+    particles = [
+        initialSphere
+    ]  # particles is now a list containing the first timestep result
+
+    # random walking for n timesteps and add to each timestep result to particles
+    for i in range(1, n + 1):
+        boundRange = (sphereRadius + 1 + i) * 2
+        tree = buildTreeCPU(particles[i - 1], boundRange)
+        # tree = buildTreeCPU(
+        #     pandas.DataFrame(data={"x": [], "y": [], "z": []}), boundRange
+        # )
+        particles.append(particles[i - 1].copy(deep=True))
+
+        # Now walk the particles (the insert function returns if successful or not)
+        for particleN in initialSphere.index:
+
+            for j in range(maxTries):
+                val = random.randint(1, 6)
+                x = y = z = 0
+                if val == 1:
+                    # doing iloc just means that we can index no by a number, instead of labels like "x"
+                    x = particles[i - 1]["x"].iloc[particleN] + 1
+                    y = particles[i - 1]["y"].iloc[particleN]
+                    z = particles[i - 1]["z"].iloc[particleN]
+                elif val == 2:
+                    x = particles[i - 1]["x"].iloc[particleN] - 1
+                    y = particles[i - 1]["y"].iloc[particleN]
+                    z = particles[i - 1]["z"].iloc[particleN]
+                elif val == 3:
+                    x = particles[i - 1]["x"].iloc[particleN]
+                    y = particles[i - 1]["y"].iloc[particleN] + 1
+                    z = particles[i - 1]["z"].iloc[particleN]
+                elif val == 4:
+                    x = particles[i - 1]["x"].iloc[particleN]
+                    y = particles[i - 1]["y"].iloc[particleN] - 1
+                    z = particles[i - 1]["z"].iloc[particleN]
+                elif val == 5:
+                    x = particles[i - 1]["x"].iloc[particleN]
+                    y = particles[i - 1]["y"].iloc[particleN]
+                    z = particles[i - 1]["z"].iloc[particleN] + 1
+                else:
+                    x = particles[i - 1]["x"].iloc[particleN]
+                    y = particles[i - 1]["y"].iloc[particleN]
+                    z = particles[i - 1]["z"].iloc[particleN] - 1
+                pos = np.array([x, y, z])
+                x_2 = x**2
+                y_2 = y**2
+                z_2 = z**2
+                if tree.insert(pos) and (
+                    (x_2 + y_2 + z_2) < squaredRadius
+                    or (x_2 + z_2) < squaredCapillaryRadius
+                    or (y_2 + z_2) < squaredCapillaryRadius
+                ):
+                    particles[i]["x"].iloc[particleN] = x
+                    particles[i]["y"].iloc[particleN] = y
+                    particles[i]["z"].iloc[particleN] = z
+                    break
+
+        print("Time steps elapsed: " + str(i))
+    return particles
+
+
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particles):
+def plotCellData(particlesDF, frame=-1):
     # pylab.title("Random Walk ($n = " + str(n) + "$ steps)")
     # Gather the position of each cell and distance to origin
     frame = -1
-    x = particles[frame]["x"]
-    y = particles[frame]["y"]
-    z = particles[frame]["z"]
+    x = particlesDF[frame]["x"]
+    y = particlesDF[frame]["y"]
+    z = particlesDF[frame]["z"]
     color = []
 
     for (xVal, yVal, zVal) in zip(x, y, z):

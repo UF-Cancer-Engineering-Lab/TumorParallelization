@@ -6,11 +6,11 @@ startTime = time.perf_counter()
 squaredRadius = sphereRadius**2
 squaredCapillaryRadius = capillaryRadius**2
 
-particles = randomWalkCPU()
+particlesDF = randomWalkCPUOctTree()
 
 print("Time to complete simulation (s): " + str(time.perf_counter() - startTime))
 print("Simulation complete. Calculating mean squared displacement")
 
-plotCellData(particles)
+plotCellData(particlesDF)
 
 # calculateMSD(particles)

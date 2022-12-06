@@ -1,9 +1,5 @@
 import numpy as np
-import pandas as pd
-from randomWalk import getInitialSphere
-from randomWalk import plotCellData
 from config import *
-from typing import Union
 
 
 class TreeNode:
@@ -78,7 +74,7 @@ class TreeNode:
                 if child.insert(position) == True:
                     self.particleCount += 1
                     return True
-            print("Failed to insert particle with position: ", position)
+            # print("Failed to insert particle with position: ", position)
             return False
 
 
@@ -87,7 +83,6 @@ def buildTreeCPU(particles, boundRange):
     particleArr = particles.to_numpy(dtype=np.int32)
     boundStart = [-boundRange / 2, -boundRange / 2, -boundRange / 2]
     root = TreeNode(boundStart, boundRange)
-    print("Length of particle arr", len(particleArr))
     for particlePos in particleArr:
         root.insert(particlePos)
     return root
