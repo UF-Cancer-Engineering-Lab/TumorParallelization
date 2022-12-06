@@ -11,9 +11,14 @@ import pandas
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from config import *
+from numba import jit
 
 # -----------------------------------------functions for walk algorithms: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def getInitialSphere(particlesNumber, porosityFraction, sphereRadius):
+def getInitialSphere(
+    particlesNumber=particlesNumber,
+    porosityFraction=porosityFraction,
+    sphereRadius=sphereRadius,
+):
 
     # child variables
     vacancies = round(particlesNumber * porosityFraction)
@@ -35,7 +40,7 @@ def getInitialSphere(particlesNumber, porosityFraction, sphereRadius):
         len(initialSphere.index) < totalPositions
     ):  # len(initialSphere.index) is the number of total rows in the DataFrame
         print("Loading initial sphere")
-        initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
+        initialSphere = pandas.DataFrame(columns=["x", "y", "z"], dtype=np.int32)
         sphereRadius = sphereRadius + 1
         for z in range(-sphereRadius, sphereRadius + 1):  # initially (-6,6)
             xMax = int(
@@ -64,8 +69,14 @@ def getInitialSphere(particlesNumber, porosityFraction, sphereRadius):
     return initialSphere
 
 
-# Not self contained, relies on config values
-def randomWalkCPU():
+def randomWalkCPU(
+    n=n,
+    maxTries=maxTries,
+    particlesNumber=particlesNumber,
+    porosityFraction=porosityFraction,
+    sphereRadius=sphereRadius,
+    capillaryRadius=capillaryRadius,
+):
 
     # Constraints for cell movement
     squaredRadius = sphereRadius**2
@@ -115,6 +126,7 @@ def randomWalkCPU():
                 x_2 = x**2
                 y_2 = y**2
                 z_2 = z**2
+
                 # comparing this values to the previous dataFrame (particles[i-1]) means we don't want the particle to move to a past position, nor do we want it to move to the x,y,z coordinate of a current position, last part is we want to squared distance to be within squared capillary radius
                 if ~(
                     (
