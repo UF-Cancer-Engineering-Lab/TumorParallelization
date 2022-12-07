@@ -62,8 +62,8 @@ def getInitialSphere(
     print("Initial sphere complete")
 
     # this randomizes the areas where the particles can and cannot go in the sphere
-    for i in range(1, vacancies + 1):
-        val = random.randint(0, len(initialSphere.index + 1))
+    for i in range(0, vacancies):
+        val = random.randint(0, len(initialSphere.index) - 1)
         initialSphere = initialSphere.drop(labels=val, axis=0).reset_index(drop=True)
         # ^^^ .reset_index method just recalculates the indices so that the gap in indices isn't there anymore
 
@@ -131,13 +131,6 @@ def randomWalkCPU(
                 # comparing this values to the previous dataFrame (particles[i-1]) means we don't want the particle to move to a past position, nor do we want it to move to the x,y,z coordinate of a current position, last part is we want to squared distance to be within squared capillary radius
                 if ~(
                     (
-                        (particles[i - 1]["x"] == x)
-                        & (particles[i - 1]["y"] == y)
-                        & (particles[i - 1]["z"] == z)
-                    ).any(
-                        axis=0
-                    )  # If any particle was in this position last timestep
-                    or (
                         (particles[i]["x"] == x)
                         & (particles[i]["y"] == y)
                         & (particles[i]["z"] == z)
@@ -185,10 +178,9 @@ def randomWalkCPUOctTree(
     # random walking for n timesteps and add to each timestep result to particles
     for i in range(1, n + 1):
         boundRange = (sphereRadius + 1 + i) * 2
-        tree = buildTreeCPU(particles[i - 1], boundRange)
-        # tree = buildTreeCPU(
-        #     pandas.DataFrame(data={"x": [], "y": [], "z": []}), boundRange
-        # )
+        tree = buildTreeCPU(
+            pandas.DataFrame(data={"x": [], "y": [], "z": []}), boundRange
+        )
         particles.append(particles[i - 1].copy(deep=True))
 
         # Now walk the particles (the insert function returns if successful or not)
@@ -270,6 +262,8 @@ def plotCellData(particlesDF, frame=-1):
             mode="markers",
         )
     )
+
+    fig.update_scenes(aspectmode="data")
 
     fig.show()
 
