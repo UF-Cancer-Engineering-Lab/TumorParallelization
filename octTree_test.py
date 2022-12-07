@@ -63,7 +63,8 @@ class TestOctTree(unittest.TestCase):
         bufferData = getBufferFromGPU(latestParticlesGPU)
 
         # Now compare the read in particle data with cpu version
-        root = buildTreeCPU(particles, boundRange)
+        particlesArr = particles.to_numpy(dtype=np.int32)
+        root = buildTreeCPU(particlesArr, boundRange)
         print("sdg")
 
     def test_2_noInsertion(self):

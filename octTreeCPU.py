@@ -3,12 +3,12 @@ from config import *
 
 
 class TreeNode:
-    def __init__(self, boundPosition: list[int], boundRange: int):
+    def __init__(self, boundPosition, boundRange):
         self.particlePosition = None
         self.boundPosition = boundPosition
         self.boundRange = boundRange
         self.particleCount = 0
-        self.children: list[TreeNode] = []
+        self.children = []
 
     def particleInBounds(self, position: list[int]):
         posX = position[0]
@@ -79,8 +79,10 @@ class TreeNode:
 
 
 # particles is expected to be a DF
-def buildTreeCPU(particles, boundRange):
-    particleArr = particles.to_numpy(dtype=np.int32)
+def buildTreeCPU(
+    particleArr=np.array([], dtype=np.int32),
+    boundRange=(1 + sphereRadius + n) * 2,
+):
     boundStart = [-boundRange / 2, -boundRange / 2, -boundRange / 2]
     root = TreeNode(boundStart, boundRange)
     for particlePos in particleArr:

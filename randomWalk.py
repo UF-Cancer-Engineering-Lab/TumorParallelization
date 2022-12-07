@@ -71,10 +71,9 @@ def getInitialSphere(
 
 
 def randomWalkCPU(
+    initialSphere,
     n=n,
     maxTries=maxTries,
-    particlesNumber=particlesNumber,
-    porosityFraction=porosityFraction,
     sphereRadius=sphereRadius,
     capillaryRadius=capillaryRadius,
 ):
@@ -85,81 +84,66 @@ def randomWalkCPU(
 
     # creating two array for containing x and y coordinate
     # of size equals to the number of size and filled up with 0's
-    initialSphere = getInitialSphere(particlesNumber, porosityFraction, sphereRadius)
     particles = [
         initialSphere
     ]  # particles is now a list containing the first timestep result
 
     # random walking for n timesteps and add to each timestep result to particles
     for i in range(1, n + 1):
-        particles.append(
-            particles[i - 1].copy(deep=True)
-        )  #  "deep copy = true"copies all the values of "initialSphere"
-        for particleN in initialSphere.index:
-            tries = 0
-            while tries < maxTries:
+        particles.append(particles[-1].copy())
+
+        particleN = -1
+        for particle in particles[-1]:
+            particleN += 1
+            for j in range(maxTries):
+                walkedParticle = particle.copy()
                 val = random.randint(1, 6)
+
                 if val == 1:
-                    # doing iloc just means that we can index no by a number, instead of labels like "x"
-                    x = particles[i - 1]["x"].iloc[particleN] + 1
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[0] += 1
                 elif val == 2:
-                    x = particles[i - 1]["x"].iloc[particleN] - 1
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[0] -= 1
                 elif val == 3:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN] + 1
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[1] += 1
                 elif val == 4:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN] - 1
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[1] -= 1
                 elif val == 5:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN] + 1
+                    walkedParticle[2] += 1
                 else:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN] - 1
-                x_2 = x**2
-                y_2 = y**2
-                z_2 = z**2
+                    walkedParticle[2] -= 1
+
+                x_2 = walkedParticle[0] ** 2
+                y_2 = walkedParticle[1] ** 2
+                z_2 = walkedParticle[2] ** 2
 
                 # comparing this values to the previous dataFrame (particles[i-1]) means we don't want the particle to move to a past position, nor do we want it to move to the x,y,z coordinate of a current position, last part is we want to squared distance to be within squared capillary radius
-                if ~(
-                    (
-                        (particles[i]["x"] == x)
-                        & (particles[i]["y"] == y)
-                        & (particles[i]["z"] == z)
-                    ).any(
-                        axis=0
-                    )  # If any particle was in this position this timestep
-                    or ~(
-                        (x_2 + y_2 + z_2) < squaredRadius
-                        or (x_2 + z_2) < squaredCapillaryRadius
-                        or (y_2 + z_2) < squaredCapillaryRadius
-                    )  # If outside the capillary radius
-                ):
-                    particles[i].at[particleN, "x"] = x
-                    particles[i].at[particleN, "y"] = y
-                    particles[i].at[particleN, "z"] = z
-                    tries = maxTries
-
-                else:
-                    tries = tries + 1
+                if (
+                    not any(
+                        np.equal(
+                            particles[i],
+                            [
+                                walkedParticle[0],
+                                walkedParticle[1],
+                                walkedParticle[2],
+                            ],
+                        ).all(1)
+                    )
+                ) and (  # No particle in this timestep shares the same position
+                    (x_2 + y_2 + z_2) < squaredRadius
+                    or (x_2 + z_2) < squaredCapillaryRadius
+                    or (y_2 + z_2) < squaredCapillaryRadius
+                ):  # If inside the capillary radius
+                    particles[i][particleN] = walkedParticle
+                    break
 
         print("Time steps elapsed: " + str(i))
     return particles
 
 
 def randomWalkCPUOctTree(
+    initialSphere,
     n=n,
     maxTries=maxTries,
-    particlesNumber=particlesNumber,
-    porosityFraction=porosityFraction,
     sphereRadius=sphereRadius,
     capillaryRadius=capillaryRadius,
 ):
@@ -170,7 +154,6 @@ def randomWalkCPUOctTree(
 
     # creating two array for containing x and y coordinate
     # of size equals to the number of size and filled up with 0's
-    initialSphere = getInitialSphere(particlesNumber, porosityFraction, sphereRadius)
     particles = [
         initialSphere
     ]  # particles is now a list containing the first timestep result
@@ -178,54 +161,39 @@ def randomWalkCPUOctTree(
     # random walking for n timesteps and add to each timestep result to particles
     for i in range(1, n + 1):
         boundRange = (sphereRadius + 1 + i) * 2
-        tree = buildTreeCPU(
-            pandas.DataFrame(data={"x": [], "y": [], "z": []}), boundRange
-        )
-        particles.append(particles[i - 1].copy(deep=True))
+        tree = buildTreeCPU(boundRange=boundRange)
+        particles.append(particles[i - 1].copy())
 
         # Now walk the particles (the insert function returns if successful or not)
-        for particleN in initialSphere.index:
-
+        particleN = -1
+        for particle in particles[i]:
+            particleN += 1
             for j in range(maxTries):
+                walkedParticle = particle.copy()
                 val = random.randint(1, 6)
-                x = y = z = 0
                 if val == 1:
-                    # doing iloc just means that we can index no by a number, instead of labels like "x"
-                    x = particles[i - 1]["x"].iloc[particleN] + 1
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[0] += 1
                 elif val == 2:
-                    x = particles[i - 1]["x"].iloc[particleN] - 1
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[0] -= 1
                 elif val == 3:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN] + 1
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[1] += 1
                 elif val == 4:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN] - 1
-                    z = particles[i - 1]["z"].iloc[particleN]
+                    walkedParticle[1] -= 1
                 elif val == 5:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN] + 1
+                    walkedParticle[2] += 1
                 else:
-                    x = particles[i - 1]["x"].iloc[particleN]
-                    y = particles[i - 1]["y"].iloc[particleN]
-                    z = particles[i - 1]["z"].iloc[particleN] - 1
-                pos = np.array([x, y, z])
-                x_2 = x**2
-                y_2 = y**2
-                z_2 = z**2
-                if tree.insert(pos) and (
+                    walkedParticle[2] -= 1
+                x_2 = walkedParticle[0] ** 2
+                y_2 = walkedParticle[1] ** 2
+                z_2 = walkedParticle[2] ** 2
+
+                # If able to insert into tree (unique value for this timestep) and inside the capillary
+                if tree.insert(walkedParticle) and (
                     (x_2 + y_2 + z_2) < squaredRadius
                     or (x_2 + z_2) < squaredCapillaryRadius
                     or (y_2 + z_2) < squaredCapillaryRadius
                 ):
-                    particles[i]["x"].iloc[particleN] = x
-                    particles[i]["y"].iloc[particleN] = y
-                    particles[i]["z"].iloc[particleN] = z
+                    particles[i][particleN] = walkedParticle
                     break
 
         print("Time steps elapsed: " + str(i))
