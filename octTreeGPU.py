@@ -29,7 +29,7 @@ def estimateTreeSizeFromLeafCount(leafCount):
     while leafCount > 0:
         treeSize += leafCount / 8
         leafCount /= 8
-    return 2 * round(treeSize)  # *2 for good measure lol
+    return 9 + 2 * round(treeSize)
 
 
 def makeGPUTreeBuffer(numberOfNodes):
@@ -265,7 +265,10 @@ def buildTree(
 
                             # Set existing nodes child index to the next level
                             buffer[subtreeIndex + 4] = nextAvailableIndex
-                            subtreeIndex = nextAvailableIndex
+                            if (
+                                currentNodePos != subtreeIndex
+                            ):  # Set as non-leaf. Be careful not to release original lock. This will be done at end of function.
+                                buffer[subtreeIndex + 5] = -2
 
                             # Subdivide the bounds if another iteration is needed
                             updateBoundStartFromOffset(
@@ -275,6 +278,9 @@ def buildTree(
 
                             # Determine if we should subdivide again based on offsets
                             keepSubdividing = offsetExisting == offsetNew
+                            subtreeIndex = nextAvailableIndex
+                            if keepSubdividing:
+                                subtreeIndex += 6 * offsetNew
 
                         # print(
                         #     "Subdivided into node at: ",

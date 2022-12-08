@@ -10,7 +10,7 @@ class TreeNode:
         self.particleCount = 0
         self.children = []
 
-    def particleInBounds(self, position: list[int]):
+    def particleInBounds(self, position):
         posX = position[0]
         posY = position[1]
         posZ = position[2]
@@ -24,9 +24,9 @@ class TreeNode:
             posX >= boundX
             and posY >= boundY
             and posZ >= boundZ
-            and posX <= boundXMax
-            and posY <= boundYMax
-            and posZ <= boundZMax
+            and posX < boundXMax
+            and posY < boundYMax
+            and posZ < boundZMax
         )
 
     def subdivide(self):

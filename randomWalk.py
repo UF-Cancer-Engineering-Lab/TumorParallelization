@@ -35,23 +35,22 @@ def getInitialSphere(
     # This while loop is getting all the x, y, z integer values insde of 3D sphere (in all 8 3D quadrants). Each of these combination of x,y,z values,
     # of which there are ~840, will be the vector components of a vector whose magnitude is an integer, conforming to a radius of a smaller sphere than the original one
     # set in the limit
-
     # initialSphere.index returns total rows in the initialSphere dataFrame
     while (
         len(initialSphere.index) < totalPositions
     ):  # len(initialSphere.index) is the number of total rows in the DataFrame
         print("Loading initial sphere")
         initialSphere = pandas.DataFrame(columns=["x", "y", "z"], dtype=np.int32)
-        sphereRadius = sphereRadius + 1
-        for z in range(-sphereRadius, sphereRadius + 1):  # initially (-6,6)
+        sphereRadius = sphereRadius
+        for z in range(-sphereRadius, sphereRadius):
             xMax = int(
                 math.sqrt(sphereRadius**2 - z**2 - 0**2)
             )  # initially z = -6 #these xMax values appy for
             # print(z)
-            for x in range(-xMax, xMax + 1):
+            for x in range(-xMax, xMax):
                 yMax = int(math.sqrt(sphereRadius**2 - z**2 - x**2))
                 # print(x,yMax)
-                for y in range(-yMax, yMax + 1):
+                for y in range(-yMax, yMax):
                     # initialSphere = initialSphere.append(
                     #     , ignore_index=True
                     # )
