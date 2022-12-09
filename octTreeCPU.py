@@ -81,7 +81,7 @@ class TreeNode:
 # particles is expected to be a DF
 def buildTreeCPU(
     particleArr=np.array([], dtype=np.int32),
-    boundRange=(1 + sphereRadius + n) * 2,
+    boundRange=np.float32((1 + sphereRadius + n) * 2),
 ):
     boundStart = [-boundRange / 2, -boundRange / 2, -boundRange / 2]
     root = TreeNode(boundStart, boundRange)

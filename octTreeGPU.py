@@ -8,6 +8,8 @@ from config import *
 
 print(cuda.gpus)  # Will error out if there is no compatible gpu
 
+gpuBufferType = np.dtype("i4, i4, i4, i4, i4, i4")
+
 # The buffer is organized as follows:
 #   Each "node" is 6 ints
 #       int1 is the ID of the particle
@@ -55,48 +57,167 @@ def clearTree(buffer, bufferSize):
         buffer[x * 6 + 5] = -1  # reset the locks to -1 to indicate tree is empty
 
 
+# @cuda.jit(device=True)
+# def warningIfNotInBounds(boundStart, boundRange, particlePos):
+#     boundMaxX = boundStart[0] + boundRange
+#     boundMaxY = boundStart[1] + boundRange
+#     boundMaxZ = boundStart[2] + boundRange
+#     inBounds = (
+#         particlePos[0] >= boundStart[0]
+#         and particlePos[1] >= boundStart[1]
+#         and particlePos[2] >= boundStart[2]
+#         and particlePos[0] < boundMaxX
+#         and particlePos[1] < boundMaxY
+#         and particlePos[2] < boundMaxZ
+#     )
+
+#     if not inBounds:
+#         print(
+#             "Particle with position",
+#             particlePos[0],
+#             particlePos[1],
+#             particlePos[2],
+#             "not in bounds",
+#             boundStart[0],
+#             boundStart[1],
+#             boundStart[2],
+#             boundRange,
+#         )
+@cuda.jit(device=True)
+def warningIfNotInBounds(bX, bY, bZ, boundRange, particlePos):
+    boundMaxX = bX + boundRange
+    boundMaxY = bY + boundRange
+    boundMaxZ = bZ + boundRange
+    inBounds = (
+        particlePos[0] >= bX
+        and particlePos[1] >= bY
+        and particlePos[2] >= bZ
+        and particlePos[0] < boundMaxX
+        and particlePos[1] < boundMaxY
+        and particlePos[2] < boundMaxZ
+    )
+
+    if not inBounds:
+        # print(
+        #     "Particle with position",
+        #     particlePos[0],
+        #     particlePos[1],
+        #     particlePos[2],
+        #     "not in bounds",
+        #     bX,
+        #     bY,
+        #     bZ,
+        #     boundRange,
+        # )
+        return False
+
+    return True
+
+
 @cuda.jit(device=True)
 def getOctantInNextLevel(boundStart, boundRange, particlePos):
     # Determine if the particles position is in O1,O1...O8
-    centerX = boundStart[0] + boundRange / 2
-    centerY = boundStart[1] + boundRange / 2
-    centerZ = boundStart[2] + boundRange / 2
+    centerX = boundStart[0] + boundRange / 2.0
+    centerY = boundStart[1] + boundRange / 2.0
+    centerZ = boundStart[2] + boundRange / 2.0
 
-    particleX = particlePos[0]
-    particleY = particlePos[1]
-    particleZ = particlePos[2]
+    particleX = np.float32(particlePos[0])
+    particleY = np.float32(particlePos[1])
+    particleZ = np.float32(particlePos[2])
 
+    octant = 0
     # Convention followed found here: https://commons.wikimedia.org/wiki/Category:Octant_%28geometry%29
     if particleX >= centerX:
         if particleY >= centerY:
             if particleZ >= centerZ:
-                return 0
+                octant = 0
             else:
-                return 4
+                octant = 4
         else:
             if particleZ >= centerZ:
-                return 3
+                octant = 3
             else:
-                return 7
+                octant = 7
     else:
         if particleY >= centerY:
             if particleZ >= centerZ:
-                return 1
+                octant = 1
             else:
-                return 5
+                octant = 5
         else:
             if particleZ >= centerZ:
-                return 2
+                octant = 2
             else:
-                return 6
+                octant = 6
+
+    newBoundX = 0.0
+    newBoundY = 0.0
+    newBoundZ = 0.0
+    if octant == 0:
+        newBoundX = centerX
+        newBoundY = centerY
+        newBoundZ = centerZ
+    elif octant == 1:
+        newBoundX = boundStart[0]
+        newBoundY = centerY
+        newBoundZ = centerZ
+    elif octant == 2:
+        newBoundX = boundStart[0]
+        newBoundY = boundStart[1]
+        newBoundZ = centerZ
+    elif octant == 3:
+        newBoundX = centerX
+        newBoundY = boundStart[1]
+        newBoundZ = centerZ
+    elif octant == 4:
+        newBoundX = centerX
+        newBoundY = centerY
+        newBoundZ = boundStart[2]
+    elif octant == 5:
+        newBoundX = boundStart[0]
+        newBoundY = centerY
+        newBoundZ = boundStart[2]
+    elif octant == 6:
+        newBoundX = boundStart[0]
+        newBoundY = boundStart[1]
+        newBoundZ = boundStart[2]
+    elif octant == 7:
+        newBoundX = centerX
+        newBoundY = boundStart[1]
+        newBoundZ = boundStart[2]
+
+    sdg = warningIfNotInBounds(
+        newBoundX, newBoundY, newBoundZ, boundRange / 2.0, particlePos
+    )
+    if not sdg and boundRange > 0.5:
+        print(
+            "Offset",
+            octant,
+            "incorrectly chosen for particle",
+            particleX,
+            particleY,
+            particleZ,
+            "at boundStart",
+            boundStart[0],
+            boundStart[1],
+            boundStart[2],
+            "with range",
+            boundRange,
+            "with center",
+            centerX,
+            centerY,
+            centerZ,
+        )
+
+    return octant
 
 
 @cuda.jit(device=True)
 def updateBoundStartFromOffset(boundStart, boundRange, offset):
 
-    centerX = boundStart[0] + boundRange / 2
-    centerY = boundStart[1] + boundRange / 2
-    centerZ = boundStart[2] + boundRange / 2
+    centerX = boundStart[0] + boundRange / 2.0
+    centerY = boundStart[1] + boundRange / 2.0
+    centerZ = boundStart[2] + boundRange / 2.0
 
     # Convention followed found here: https://commons.wikimedia.org/wiki/Category:Octant_%28geometry%29
     if offset == 0:
@@ -158,13 +279,12 @@ def buildTree(
         # will be used to keep track of position as we traverse down the tree
         insertedNode = False
         currentNodePos = 0
-        boundStart = cuda.local.array(shape=3, dtype=np.int32)
-        boundStart[0] = -boundRange / 2
-        boundStart[1] = -boundRange / 2
-        boundStart[2] = -boundRange / 2
-        currentBoundRange = boundRange
+        boundStart = cuda.local.array(shape=3, dtype=np.float32)
+        boundStart[0] = -np.float32(boundRange) / 2.0
+        boundStart[1] = -np.float32(boundRange) / 2.0
+        boundStart[2] = -np.float32(boundRange) / 2.0
+        currentBoundRange = np.float32(boundRange)
         particlePos = latestParticles[particleID]
-
         numberOfFailedAttempts = 0
 
         # We will travel down the tree and find where we can insert the particle
@@ -190,14 +310,6 @@ def buildTree(
             # Attempt to acquire a lock to insert at this node of the tree
             elif -1 == cuda.atomic.compare_and_swap(currNode_LOCK_ary, -1, particleID):
                 currNode_CHILD = buffer[currentNodePos + 4]
-                # print(
-                #     "Acquired Lock!",
-                #     particleID,
-                #     " at bufferPos ",
-                #     currentNodePos,
-                #     " with child ",
-                #     currNode_CHILD,
-                # )
 
                 if currNode_CHILD == -1:
                     # Free to insert here
@@ -210,7 +322,6 @@ def buildTree(
                     ] = -2  # Indicate there is a particle here now
                     insertedNode = True
                     buffer[currentNodePos + 5] = -1  # Release lock
-                    # print("Inserted into empty", particleID)
 
                 else:
                     # We need to move this node and the node we wanna insert down the tree
@@ -218,17 +329,13 @@ def buildTree(
                     # It is guaranteed both will be moved into the same level of the tree
                     existingParticlePos = latestParticles[buffer[currentNodePos]]
 
-                    # print(
-                    #     "Inserting into non-empty", particleID, buffer[currentNodePos]
-                    # )
-
                     # Try again if there is a conflict
                     if particlesSharePosition(particlePos, existingParticlePos):
                         numberOfFailedAttempts += 1
-                        boundStart[0] = -boundRange / 2
-                        boundStart[1] = -boundRange / 2
-                        boundStart[2] = -boundRange / 2
-                        currentBoundRange = boundRange
+                        currentBoundRange = np.float32(boundRange)
+                        boundStart[0] = -currentBoundRange / 2.0
+                        boundStart[1] = -currentBoundRange / 2.0
+                        boundStart[2] = -currentBoundRange / 2.0
                         currentNodePos = 0  # LEAVES ROOM FOR OPTIMIZATION!!!
                         # print("Particles share position. Retrying...", particleID)
                         buffer[currentNodePos + 5] = -1  # Release lock
@@ -256,13 +363,6 @@ def buildTree(
                                 bufferSize, 0, childrenSize
                             )
 
-                            # print(
-                            #     particleID,
-                            #     subtreeIndex,
-                            #     nextAvailableIndex,
-                            #     currentNodePos,
-                            # )
-
                             # Set existing nodes child index to the next level
                             buffer[subtreeIndex + 4] = nextAvailableIndex
                             if (
@@ -272,7 +372,7 @@ def buildTree(
 
                             # Subdivide the bounds if another iteration is needed
                             updateBoundStartFromOffset(
-                                boundStart, currentBoundRange, nextOctant
+                                boundStart, currentBoundRange, offsetNew
                             )
                             currentBoundRange /= 2
 
@@ -282,36 +382,15 @@ def buildTree(
                             if keepSubdividing:
                                 subtreeIndex += 6 * offsetNew
 
-                        # print(
-                        #     "Subdivided into node at: ",
-                        #     particleID,
-                        #     offsetNew,
-                        #     buffer[currentNodePos],
-                        #     offsetExisting,
-                        # )
-                        # print("Subtree index: ", subtreeIndex)
-
                         # Invalid buffer position. End thread work.
                         if subtreeIndex >= len(buffer):
                             # reset child value as non-leaf
                             insertedNode = True
-                            print(
-                                "Exceeded bounds. Resetting child.",
-                                particleID,
-                                subtreeIndex,
-                                len(buffer),
-                            )
                             buffer[currentNodePos + 4] = -2
                             buffer[currentNodePos + 5] = -1  # Release lock
 
                         else:
                             # Move the current and existing into their offset positions
-                            # print(
-                            #     "Moving existing and current nodes to offset positions",
-                            #     subtreeIndex,
-                            #     offsetExisting,
-                            #     offsetNew,
-                            # )
                             # existing
                             offsetExisting *= 6
                             buffer[subtreeIndex + offsetExisting] = buffer[
@@ -344,7 +423,6 @@ def buildTree(
 
                             insertedNode = True
                             buffer[currentNodePos + 5] = -2  # Release lock
-                # print("Leaving Insertion Block!")
 
     # print("\n\n\n======END KERNEL DEBUG INFO======")
 
@@ -368,7 +446,7 @@ def readTree(buffer, latestParticles):
 
 
 def walkParticlesGPU(
-    particles, boundRange=(np.int32)((n + 2 + sphereRadius) * 2), maxTries=maxTries
+    particles, boundRange=(np.float32)((n + 2 + sphereRadius) * 2), maxTries=maxTries
 ):
     numParticles = len(particles[0].index)
     GPUBufferSizeNodes = estimateTreeSizeFromLeafCount(numParticles)
@@ -399,27 +477,3 @@ def walkParticlesGPU(
                 }
             )
         )
-
-    # TESTING AREA
-    bufferData = getBufferFromGPU(buffer)
-    print("ORIGINAL DATA")
-    print(particles[len(particles) - 1].to_numpy())
-    print("Data on GPU:")
-    for i in range(9):
-        print("\nParticle: ", bufferData[i * 6])
-        print(
-            "Pos: ", bufferData[i * 6 + 1], bufferData[i * 6 + 2], bufferData[i * 6 + 3]
-        )
-        print("Child: ", bufferData[i * 6 + 4])
-        print("Lock: ", bufferData[i * 6 + 5])
-
-    particleCountInResult = 0
-    treeInValidLockState = True
-    for i in range(len(buffer) // 6):
-        if buffer[i * 6 + 4] == -2 and buffer[i * 6 + 5] == -1:
-            particleCountInResult += 1
-        if not (buffer[i * 6 + 5] == -1 or buffer[i * 6 + 5] == -2):
-            treeInValidLockState = False
-            print("Invalid lockstate at particle: ", i)
-    print("Particles inserted:", particleCountInResult, "/", numParticles)
-    print("Tree is in a valid state (lock-wise):", treeInValidLockState)

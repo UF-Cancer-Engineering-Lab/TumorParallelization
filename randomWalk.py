@@ -39,7 +39,7 @@ def getInitialSphere(
     while (
         len(initialSphere.index) < totalPositions
     ):  # len(initialSphere.index) is the number of total rows in the DataFrame
-        print("Loading initial sphere")
+        # print("Loading initial sphere")
         initialSphere = pandas.DataFrame(columns=["x", "y", "z"], dtype=np.int32)
         sphereRadius = sphereRadius
         for z in range(-sphereRadius, sphereRadius):
@@ -58,7 +58,7 @@ def getInitialSphere(
 
     totalPositions = len(initialSphere.index)
     vacancies = round(totalPositions * porosityFraction)
-    print("Initial sphere complete")
+    # print("Initial sphere complete")
 
     # this randomizes the areas where the particles can and cannot go in the sphere
     for i in range(0, vacancies):
