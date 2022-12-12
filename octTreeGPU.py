@@ -2,13 +2,8 @@ import numba
 from numba import cuda
 import numpy as np
 import pandas as pd
-from randomWalk import getInitialSphere
-from randomWalk import plotCellData
 from config import *
-
-print(cuda.gpus)  # Will error out if there is no compatible gpu
-
-gpuBufferType = np.dtype("i4, i4, i4, i4, i4, i4")
+from numba.cuda import float32x3
 
 # The buffer is organized as follows:
 #   Each "node" is 6 ints
@@ -57,69 +52,29 @@ def clearTree(buffer, bufferSize):
         buffer[x * 6 + 5] = -1  # reset the locks to -1 to indicate tree is empty
 
 
-# @cuda.jit(device=True)
-# def warningIfNotInBounds(boundStart, boundRange, particlePos):
-#     boundMaxX = boundStart[0] + boundRange
-#     boundMaxY = boundStart[1] + boundRange
-#     boundMaxZ = boundStart[2] + boundRange
-#     inBounds = (
-#         particlePos[0] >= boundStart[0]
-#         and particlePos[1] >= boundStart[1]
-#         and particlePos[2] >= boundStart[2]
-#         and particlePos[0] < boundMaxX
-#         and particlePos[1] < boundMaxY
-#         and particlePos[2] < boundMaxZ
-#     )
-
-#     if not inBounds:
-#         print(
-#             "Particle with position",
-#             particlePos[0],
-#             particlePos[1],
-#             particlePos[2],
-#             "not in bounds",
-#             boundStart[0],
-#             boundStart[1],
-#             boundStart[2],
-#             boundRange,
-#         )
 @cuda.jit(device=True)
-def warningIfNotInBounds(bX, bY, bZ, boundRange, particlePos):
-    boundMaxX = bX + boundRange
-    boundMaxY = bY + boundRange
-    boundMaxZ = bZ + boundRange
+def isInBounds(boundartStart, boundRange, particlePos):
+    boundMaxX = boundartStart.x + boundRange
+    boundMaxY = boundartStart.y + boundRange
+    boundMaxZ = boundartStart.z + boundRange
     inBounds = (
-        particlePos[0] >= bX
-        and particlePos[1] >= bY
-        and particlePos[2] >= bZ
+        particlePos[0] >= boundartStart.x
+        and particlePos[1] >= boundartStart.y
+        and particlePos[2] >= boundartStart.z
         and particlePos[0] < boundMaxX
         and particlePos[1] < boundMaxY
         and particlePos[2] < boundMaxZ
     )
 
-    if not inBounds:
-        # print(
-        #     "Particle with position",
-        #     particlePos[0],
-        #     particlePos[1],
-        #     particlePos[2],
-        #     "not in bounds",
-        #     bX,
-        #     bY,
-        #     bZ,
-        #     boundRange,
-        # )
-        return False
-
-    return True
+    return inBounds
 
 
 @cuda.jit(device=True)
-def getOctantInNextLevel(boundStart, boundRange, particlePos):
+def getNextOctant(boundStart, boundRange, particlePos):
     # Determine if the particles position is in O1,O1...O8
-    centerX = boundStart[0] + boundRange / 2.0
-    centerY = boundStart[1] + boundRange / 2.0
-    centerZ = boundStart[2] + boundRange / 2.0
+    centerX = np.float32(boundStart.x + (boundRange / 2.0))
+    centerY = np.float32(boundStart.y + (boundRange / 2.0))
+    centerZ = np.float32(boundStart.z + (boundRange / 2.0))
 
     particleX = np.float32(particlePos[0])
     particleY = np.float32(particlePos[1])
@@ -150,108 +105,32 @@ def getOctantInNextLevel(boundStart, boundRange, particlePos):
             else:
                 octant = 6
 
-    newBoundX = 0.0
-    newBoundY = 0.0
-    newBoundZ = 0.0
-    if octant == 0:
-        newBoundX = centerX
-        newBoundY = centerY
-        newBoundZ = centerZ
-    elif octant == 1:
-        newBoundX = boundStart[0]
-        newBoundY = centerY
-        newBoundZ = centerZ
-    elif octant == 2:
-        newBoundX = boundStart[0]
-        newBoundY = boundStart[1]
-        newBoundZ = centerZ
-    elif octant == 3:
-        newBoundX = centerX
-        newBoundY = boundStart[1]
-        newBoundZ = centerZ
-    elif octant == 4:
-        newBoundX = centerX
-        newBoundY = centerY
-        newBoundZ = boundStart[2]
-    elif octant == 5:
-        newBoundX = boundStart[0]
-        newBoundY = centerY
-        newBoundZ = boundStart[2]
-    elif octant == 6:
-        newBoundX = boundStart[0]
-        newBoundY = boundStart[1]
-        newBoundZ = boundStart[2]
-    elif octant == 7:
-        newBoundX = centerX
-        newBoundY = boundStart[1]
-        newBoundZ = boundStart[2]
-
-    sdg = warningIfNotInBounds(
-        newBoundX, newBoundY, newBoundZ, boundRange / 2.0, particlePos
-    )
-    if not sdg and boundRange > 0.5:
-        print(
-            "Offset",
-            octant,
-            "incorrectly chosen for particle",
-            particleX,
-            particleY,
-            particleZ,
-            "at boundStart",
-            boundStart[0],
-            boundStart[1],
-            boundStart[2],
-            "with range",
-            boundRange,
-            "with center",
-            centerX,
-            centerY,
-            centerZ,
-        )
-
     return octant
 
 
 @cuda.jit(device=True)
-def updateBoundStartFromOffset(boundStart, boundRange, offset):
-
-    centerX = boundStart[0] + boundRange / 2.0
-    centerY = boundStart[1] + boundRange / 2.0
-    centerZ = boundStart[2] + boundRange / 2.0
+def getNewBoundStart(boundStart, boundRange, offset):
+    centerX = np.float32(boundStart.x + (boundRange / 2.0))
+    centerY = np.float32(boundStart.y + (boundRange / 2.0))
+    centerZ = np.float32(boundStart.z + (boundRange / 2.0))
 
     # Convention followed found here: https://commons.wikimedia.org/wiki/Category:Octant_%28geometry%29
     if offset == 0:
-        boundStart[0] = centerX
-        boundStart[1] = centerY
-        boundStart[2] = centerZ
+        return float32x3(centerX, centerY, centerZ)
     elif offset == 1:
-        boundStart[0] = boundStart[0]
-        boundStart[1] = centerY
-        boundStart[2] = centerZ
+        return float32x3(boundStart.x, centerY, centerZ)
     elif offset == 2:
-        boundStart[0] = boundStart[0]
-        boundStart[1] = boundStart[1]
-        boundStart[2] = centerZ
+        return float32x3(boundStart.x, boundStart.y, centerZ)
     elif offset == 3:
-        boundStart[0] = centerX
-        boundStart[1] = boundStart[1]
-        boundStart[2] = centerZ
+        return float32x3(centerX, boundStart.y, centerZ)
     elif offset == 4:
-        boundStart[0] = centerX
-        boundStart[1] = centerY
-        boundStart[2] = boundStart[2]
+        return float32x3(centerX, centerY, boundStart.z)
     elif offset == 5:
-        boundStart[0] = boundStart[0]
-        boundStart[1] = centerY
-        boundStart[2] = boundStart[2]
+        return float32x3(boundStart.x, centerY, boundStart.z)
     elif offset == 6:
-        boundStart[0] = boundStart[0]
-        boundStart[1] = boundStart[1]
-        boundStart[2] = boundStart[2]
+        return float32x3(boundStart.x, boundStart.y, boundStart.z)
     elif offset == 7:
-        boundStart[0] = centerX
-        boundStart[1] = boundStart[1]
-        boundStart[2] = boundStart[2]
+        return float32x3(centerX, boundStart.y, boundStart.z)
 
 
 @cuda.jit(device=True)
@@ -279,10 +158,15 @@ def buildTree(
         # will be used to keep track of position as we traverse down the tree
         insertedNode = False
         currentNodePos = 0
-        boundStart = cuda.local.array(shape=3, dtype=np.float32)
-        boundStart[0] = -np.float32(boundRange) / 2.0
-        boundStart[1] = -np.float32(boundRange) / 2.0
-        boundStart[2] = -np.float32(boundRange) / 2.0
+        boundStart = float32x3(
+            -np.float32(boundRange) / 2.0,
+            -np.float32(boundRange) / 2.0,
+            -np.float32(boundRange) / 2.0,
+        )
+        # boundStart = cuda.local.array(shape=3, dtype=np.float32)
+        # boundStart[0] = -np.float32(boundRange) / 2.0
+        # boundStart[1] = -np.float32(boundRange) / 2.0
+        # boundStart[2] = -np.float32(boundRange) / 2.0
         currentBoundRange = np.float32(boundRange)
         particlePos = latestParticles[particleID]
         numberOfFailedAttempts = 0
@@ -295,20 +179,20 @@ def buildTree(
         ):
 
             currNode_LOCK_ary = buffer[currentNodePos + 5 : currentNodePos + 6]
-            nextOctant = getOctantInNextLevel(
-                boundStart, currentBoundRange, particlePos
-            )
+            nextOctant = getNextOctant(boundStart, currentBoundRange, particlePos)
 
             # If current node is non-leaf then traverse to child in correct octant
             if currNode_LOCK_ary[0] == -2:
                 currNode_CHILD = buffer[currentNodePos + 4]
                 currentNodePos = currNode_CHILD + nextOctant * 6
                 # Also update the boundRange and boundStart for next iteration
-                updateBoundStartFromOffset(boundStart, currentBoundRange, nextOctant)
+                boundStart = getNewBoundStart(boundStart, currentBoundRange, nextOctant)
                 currentBoundRange /= 2
 
             # Attempt to acquire a lock to insert at this node of the tree
             elif -1 == cuda.atomic.compare_and_swap(currNode_LOCK_ary, -1, particleID):
+                cuda.threadfence()
+
                 currNode_CHILD = buffer[currentNodePos + 4]
 
                 if currNode_CHILD == -1:
@@ -333,9 +217,11 @@ def buildTree(
                     if particlesSharePosition(particlePos, existingParticlePos):
                         numberOfFailedAttempts += 1
                         currentBoundRange = np.float32(boundRange)
-                        boundStart[0] = -currentBoundRange / 2.0
-                        boundStart[1] = -currentBoundRange / 2.0
-                        boundStart[2] = -currentBoundRange / 2.0
+                        boundStart = float32x3(
+                            -np.float32(boundRange) / 2.0,
+                            -np.float32(boundRange) / 2.0,
+                            -np.float32(boundRange) / 2.0,
+                        )
                         currentNodePos = 0  # LEAVES ROOM FOR OPTIMIZATION!!!
                         # print("Particles share position. Retrying...", particleID)
                         buffer[currentNodePos + 5] = -1  # Release lock
@@ -349,10 +235,10 @@ def buildTree(
                         keepSubdividing = True
                         while keepSubdividing and subtreeIndex < len(buffer):
                             # Calculate offsets for existing and new offset
-                            offsetNew = getOctantInNextLevel(
+                            offsetNew = getNextOctant(
                                 boundStart, currentBoundRange, particlePos
                             )
-                            offsetExisting = getOctantInNextLevel(
+                            offsetExisting = getNextOctant(
                                 boundStart, currentBoundRange, existingParticlePos
                             )
 
@@ -371,7 +257,7 @@ def buildTree(
                                 buffer[subtreeIndex + 5] = -2
 
                             # Subdivide the bounds if another iteration is needed
-                            updateBoundStartFromOffset(
+                            boundStart = getNewBoundStart(
                                 boundStart, currentBoundRange, offsetNew
                             )
                             currentBoundRange /= 2
@@ -424,7 +310,7 @@ def buildTree(
                             insertedNode = True
                             buffer[currentNodePos + 5] = -2  # Release lock
 
-    # print("\n\n\n======END KERNEL DEBUG INFO======")
+                cuda.threadfence()
 
 
 # Updates latest particles with new data
