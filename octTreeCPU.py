@@ -56,7 +56,7 @@ class TreeNode:
         if (position == self.particlePosition).all():
             return False
 
-        # No subdivison, free to insert here
+        # No subdivison, free to insert here. EMPTY LEAF
         if self.particlePosition is None:
             self.particlePosition = position
             self.particleCount += 1
@@ -64,6 +64,7 @@ class TreeNode:
 
         else:
             # Handle if we have to subdivide. Also insert current particle deeper down tree.
+            # NON-EMPTY LEAF
             if len(self.children) == 0:
                 self.subdivide()
                 for child in self.children:
@@ -74,8 +75,7 @@ class TreeNode:
                 if child.insert(position) == True:
                     self.particleCount += 1
                     return True
-            # print("Failed to insert particle with position: ", position)
-            return False
+            return False  # Duplicate recieved from child node
 
 
 # particles is expected to be a DF

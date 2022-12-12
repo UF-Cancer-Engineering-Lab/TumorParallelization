@@ -153,11 +153,17 @@ class TestOctTree(unittest.TestCase):
         nblocksXRead = nblocksXClear
 
         clearTree[nblocksXClear, nthreadsX](buffer, bufferSize)
-        cuda.synchronize()
         buildTree[nblocksXBuild, nthreadsX](
-            buffer, bufferSize, latestParticlesGPU, boundRange, maxTries, False
+            buffer,
+            bufferSize,
+            latestParticlesGPU,
+            boundRange,
+            maxTries,
+            False,
+            create_xoroshiro128p_states(nblocksXBuild * nthreadsX, seed=time.time()),
+            sphereRadius**2,
+            capillaryRadius**2,
         )
-        cuda.synchronize()
         bufferData = getBufferFromGPU(buffer)
 
         leafCount = 0
@@ -247,11 +253,17 @@ class TestOctTree(unittest.TestCase):
         nblocksXRead = nblocksXClear
 
         clearTree[nblocksXClear, nthreadsX](buffer, bufferSize)
-        cuda.synchronize()
         buildTree[nblocksXBuild, nthreadsX](
-            buffer, bufferSize, latestParticlesGPU, boundRange, maxTries, False
+            buffer,
+            bufferSize,
+            latestParticlesGPU,
+            boundRange,
+            maxTries,
+            False,
+            create_xoroshiro128p_states(nblocksXBuild * nthreadsX, seed=time.time()),
+            sphereRadius**2,
+            capillaryRadius**2,
         )
-        cuda.synchronize()
         bufferData = getBufferFromGPU(buffer)
 
         # Now compare the read in particle data with cpu version
@@ -379,6 +391,16 @@ class TestOctTree(unittest.TestCase):
             validationResult = self.insertParticlesIntoTreeTest(particles)
             self.assertTrue(validationResult)
             cuda.synchronize()
+
+    def test_12_manyDuplicates(self):
+        particles = pd.DataFrame(
+            data={"x": [1000, 1, 2], "y": [1000, 1, 2], "z": [1000, 1, 2]}
+        )
+        for i in range(-3, 3):
+            particles.loc[len(particles.index)] = [i, i, i]
+        validationResult = self.insertParticlesIntoTreeTest(particles)
+        self.assertTrue(validationResult)
+        cuda.synchronize()
 
 
 if __name__ == "__main__":

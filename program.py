@@ -1,4 +1,5 @@
 from randomWalk import *
+from octTreeGPU import walkParticlesGPU
 import time
 
 
@@ -25,7 +26,8 @@ squaredRadius = sphereRadius**2
 squaredCapillaryRadius = capillaryRadius**2
 
 initialSphere = getInitialSphere()
-particles = randomWalkCPUOctTree(initialSphere.to_numpy(dtype=np.int32))
+# particles = randomWalkCPUOctTree(initialSphere.to_numpy(dtype=np.int32))
+particles = walkParticlesGPU(initialSphere.to_numpy(dtype=np.int32))
 particlesDataFrames = particlesToDF(particles)
 
 
