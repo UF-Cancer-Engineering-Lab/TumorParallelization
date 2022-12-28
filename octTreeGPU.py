@@ -255,12 +255,7 @@ def insertParticle(buffer, bufferSize, walkedParticlePos, boundStart, boundRange
 
                 # Try again if there is a conflict
                 if particlesSharePosition(walkedParticlePos, existingParticlePos):
-                    boundStart[0] = -np.float32(boundRange) / 2.0
-                    boundStart[1] = -np.float32(boundRange) / 2.0
-                    boundStart[2] = -np.float32(boundRange) / 2.0
-                    currentBoundRange = np.float32(boundRange)
                     buffer[currentNodePos + 5] = -1  # Release lock
-                    currentNodePos = 0  # LEAVES ROOM FOR OPTIMIZATION!!!
 
                 # Move both particles down the tree
                 else:
@@ -281,12 +276,10 @@ def insertParticle(buffer, bufferSize, walkedParticlePos, boundStart, boundRange
                         # get the next avaialble index to add nodes in the tree
                         # + 6 because the atomic instruction returns previous value before add
                         childrenSize = 8 * 6
-                        nextAvailableIndex = cuda.atomic.add(
-                            bufferSize, 0, childrenSize
-                        )
+                        childNodeIndex = cuda.atomic.add(bufferSize, 0, childrenSize)
 
                         # Set existing nodes child index to the next level
-                        buffer[subtreeIndex + 4] = nextAvailableIndex
+                        buffer[subtreeIndex + 4] = childNodeIndex
                         if (
                             currentNodePos != subtreeIndex
                         ):  # Set as non-leaf. Be careful not to release original lock. This will be done at end of function.
@@ -298,7 +291,7 @@ def insertParticle(buffer, bufferSize, walkedParticlePos, boundStart, boundRange
 
                         # Determine if we should subdivide again based on offsets
                         keepSubdividing = offsetExisting == offsetNew
-                        subtreeIndex = nextAvailableIndex
+                        subtreeIndex = childNodeIndex
                         if keepSubdividing:
                             subtreeIndex += 6 * offsetNew
 
@@ -422,7 +415,7 @@ def walkParticlesGPU(
     latestParticlesGPU = cuda.to_device(initialSphere)
 
     nthreadsX = 32
-    nblocksXClear = (GPUBufferSizeNodes // 32) + 1
+    nblocksXClear = (GPUBufferSizeNodes // nthreadsX) + 1
     nblocksXBuild = (numParticles // nthreadsX) + 1
     nblocksXRead = nblocksXClear
 
