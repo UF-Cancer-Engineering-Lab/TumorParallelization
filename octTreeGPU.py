@@ -409,6 +409,7 @@ def walkParticlesGPU(
     squaredCapillaryRadius=capillaryRadius**2,
 ):
     numParticles = np.shape(initialSphere)[0]
+    # TODO: Estimate tree size accurately
     GPUBufferSizeNodes = 1000000  # estimateTreeSizeFromLeafCount(numParticles)
     buffer = makeGPUTreeBuffer(GPUBufferSizeNodes)
     bufferSize = cuda.device_array(1, dtype=np.int32)
