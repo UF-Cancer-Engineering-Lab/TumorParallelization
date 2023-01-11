@@ -200,37 +200,126 @@ def randomWalkCPUOctTree(
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particlesDF, frame=-1):
+def plotCellData(particlesDF):
+
+    num_frames = len(particlesDF)
+
     # pylab.title("Random Walk ($n = " + str(n) + "$ steps)")
     # Gather the position of each cell and distance to origin
-    frame = -1
-    x = particlesDF[frame]["x"]
-    y = particlesDF[frame]["y"]
-    z = particlesDF[frame]["z"]
-    color = []
+    # x = particlesDF[frame]["x"]
+    # y = particlesDF[frame]["y"]
+    # z = particlesDF[frame]["z"]
+    # color = []
 
-    for (xVal, yVal, zVal) in zip(x, y, z):
-        color.append(
-            abs(sqrt(xVal**2 + yVal**2 + zVal**2))
-        )  # color based on distance to origin
-    color = pandas.Series(color, copy=False)
+    # for (xVal, yVal, zVal) in zip(x, y, z):
+    #     color.append(
+    #         abs(sqrt(xVal**2 + yVal**2 + zVal**2))
+    #     )  # color based on distance to origin
+    # color = pandas.Series(color, copy=False)
 
-    # Draw a scatter plot of cell positions
-    # With color scale based on distance moved from origin for each cell
+    # fig = go.Figure(
+    #     frames=[
+    #         go.Frame(
+    #             data=go.Scatter3d(
+    #                 x=particlesDF[idx]["x"],
+    #                 y=particlesDF[idx]["y"],
+    #                 z=particlesDF[idx]["z"],
+    #                 marker=go.scatter3d.Marker(
+    #                     size=3, colorscale="Viridis", opacity=0.8
+    #                 ),
+    #                 opacity=0.8,
+    #                 mode="markers",
+    #             ),
+    #             name=str("frame" + idx),
+    #         )
+    #         for idx in range(num_frames - 1)
+    #     ]
+    # )
+
     fig = go.Figure(
-        go.Scatter3d(
-            x=x,
-            y=y,
-            z=z,
-            marker=go.scatter3d.Marker(
-                size=3, color=color, colorscale="Viridis", opacity=0.8
-            ),
+        data=go.Scatter3d(
+            x=[],
+            y=[],
+            z=[],
+            marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
             opacity=0.8,
             mode="markers",
+        ),
+    )
+
+    frames = [
+        go.Frame(
+            data=[
+                go.Scatter3d(
+                    x=particlesDF[frame]["x"],
+                    y=particlesDF[frame]["y"],
+                    z=particlesDF[frame]["z"],
+                )
+            ],
+            traces=[0],
+            name=f"frame{frame}",
         )
+        for frame in range(len(particlesDF))
+    ]
+    fig.update(frames=frames)
+
+    def frame_args(duration):
+        return {
+            "frame": {"duration": duration},
+            "mode": "immediate",
+            "fromcurrent": True,
+            "transition": {"duration": duration, "easing": "linear"},
+        }
+
+    sliders = [
+        {
+            "pad": {"b": 10, "t": 60},
+            "len": 0.9,
+            "x": 0.1,
+            "y": 0,
+            "steps": [
+                {
+                    "args": [[f.name], frame_args(0)],
+                    "label": str(k),
+                    "method": "animate",
+                }
+                for k, f in enumerate(fig.frames)
+            ],
+        }
+    ]
+
+    # Layout
+    fig.update_layout(
+        title="Cancer Simulation Animation",
+        updatemenus=[
+            {
+                "buttons": [
+                    {
+                        "args": [None, frame_args(50)],
+                        "label": "&#9654;",  # play symbol
+                        "method": "animate",
+                    },
+                    {
+                        "args": [[None], frame_args(0)],
+                        "label": "&#9724;",  # pause symbol
+                        "method": "animate",
+                    },
+                ],
+                "direction": "left",
+                "pad": {"r": 10, "t": 70},
+                "type": "buttons",
+                "x": 0.1,
+                "y": 0,
+            }
+        ],
+        sliders=sliders,
     )
 
     fig.update_scenes(aspectmode="data")
+
+    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = (
+        num_frames / 24.0
+    )
 
     fig.show()
 
