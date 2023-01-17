@@ -299,11 +299,11 @@ def plotCellData(particlesDF):
                         "label": "&#9654;",  # play symbol
                         "method": "animate",
                     },
-                    {
-                        "args": [[None], frame_args(0)],
-                        "label": "&#9724;",  # pause symbol
-                        "method": "animate",
-                    },
+                    # {
+                    #     "args": [[None], frame_args(0)],
+                    #     "label": "&#9724;",  # pause symbol
+                    #     "method": "animate",
+                    # },
                 ],
                 "direction": "left",
                 "pad": {"r": 10, "t": 70},
@@ -316,10 +316,6 @@ def plotCellData(particlesDF):
     )
 
     fig.update_scenes(aspectmode="data")
-
-    fig.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = (
-        num_frames / 24.0
-    )
 
     fig.show()
 

@@ -37,4 +37,4 @@ print("Simulation complete. Calculating mean squared displacement")
 
 plotCellData(particlesDataFrames)
 
-# calculateMSD(particles)
+calculateMSD(particlesDataFrames)
