@@ -26,7 +26,7 @@ squaredCapillaryRadius = capillaryRadius**2
 
 initialSphere = getInitialSphere()
 startTime = time.perf_counter()
-# particles = randomWalkCPU(initialSphere.to_numpy(dtype=np.int32))
+particlesCPU = randomWalkCPU(initialSphere.to_numpy(dtype=np.int32))
 # particles = randomWalkCPUOctTree(initialSphere.to_numpy(dtype=np.int32))
 particles = walkParticlesGPU(initialSphere.to_numpy(dtype=np.int32))
 particlesDataFrames = particlesToDF(particles)
@@ -37,4 +37,5 @@ print("Simulation complete. Calculating mean squared displacement")
 
 plotCellData(particlesDataFrames)
 
-calculateMSD(particlesDataFrames)
+# calculateMSD(particlesDataFrames)
+calculateMSDNumpy(particlesCPU)

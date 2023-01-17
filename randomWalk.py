@@ -347,7 +347,7 @@ def calculateMSD(particles):
         particles[particleN].to_csv(str(particleN) + ".csv")
 
     print("Calculation complete. Printing PNGs")
-    maxFrame = 50
+    maxFrame = len(particles) - 1
     xmin = min(particles[maxFrame]["x"])
     xmax = max(particles[maxFrame]["x"])
     ymin = min(particles[maxFrame]["y"])
@@ -363,6 +363,63 @@ def calculateMSD(particles):
                         "z": (
                             (particles[frameN]["x"] == x)
                             & (particles[frameN]["y"] == y)
+                        ).sum(),
+                    },
+                    ignore_index=True,
+                )
+        z = maxIP.pivot(columns="x", index="y", values="z")
+        x = z.columns
+        y = z.index
+        fig, ax = plt.subplots(figsize=(12, 12))
+        ax.contourf(x, y, z, 16)  # , cmap='viridis');
+        plt.savefig(str(frameN) + ".png")
+        # pylab.show()
+
+    print("PNGs printing complete")
+    plt.close("all")
+
+
+def calculateMSDNumpy(particles):
+    initialSphere = particles[0]
+    MSD = [0]
+    sumMSD = 0
+    for frame in particles:
+        for particleN in range(0, frame.shape[0]):
+            sumMSD = (
+                sumMSD
+                + (frame[particleN][0] - initialSphere[particleN][0]) ** 2
+                + (frame[particleN][1] - initialSphere[particleN][1]) ** 2
+                + (frame[particleN][2] - initialSphere[particleN][2]) ** 2
+            )
+        MSD.append(sumMSD / frame.shape[0])
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(range(0, len(MSD), 1), MSD, "k-")  # black lines, semitransparent alpha=0.1
+    plt.show()
+
+    dMSD = pandas.DataFrame(MSD, columns=["MSD (u.u)"])
+    dMSD.to_csv("MSD.csv")
+
+    # Save simulation results
+    for particleN in range(0, len(particles)):
+        pandas.DataFrame(particles[particleN]).to_csv(str(particleN) + ".csv")
+
+    print("Calculation complete. Printing PNGs")
+    maxFrame = particles[-1]
+    xmin = min(maxFrame[0])
+    xmax = max(maxFrame[0])
+    ymin = min(maxFrame[1])
+    ymax = max(maxFrame[1])
+    for frameN in range(0, particles[0].shape[0]):
+        maxIP = pandas.DataFrame(columns=["x", "y", "z"])
+        for x in range(xmin, xmax, 1):
+            for y in range(ymin, ymax, 1):
+                maxIP = maxIP.append(
+                    {
+                        "x": x,
+                        "y": y,
+                        "z": (
+                            (particles[frameN][0] == x) & (particles[frameN][1] == y)
                         ).sum(),
                     },
                     ignore_index=True,
