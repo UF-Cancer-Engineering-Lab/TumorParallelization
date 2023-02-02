@@ -135,7 +135,7 @@ def randomWalkCPU(
                     particles[i][particleN] = walkedParticle
                     break
 
-        print("Time steps elapsed: " + str(i))
+        i % 100 and print("Time steps elapsed: " + str(i))
     return particles
 
 
@@ -321,25 +321,14 @@ def plotCellData(particlesDF):
 
 
 # ----------------------------------------- Calculate MSD --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def calculateMSD(particles):
-    initialSphere = particles[0]
-    MSD = [0]
-    sumMSD = 0
-    for frame in particles:
-        for particleN in frame.index:
-            sumMSD = (
-                sumMSD
-                + (frame.iloc[particleN]["x"] - initialSphere.iloc[particleN]["x"]) ** 2
-                + (frame.iloc[particleN]["y"] - initialSphere.iloc[particleN]["y"]) ** 2
-                + (frame.iloc[particleN]["z"] - initialSphere.iloc[particleN]["z"]) ** 2
-            )
-        MSD.append(sumMSD / len(frame.index))
-
+def plotMLD(MLD):
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(range(0, len(MSD), 1), MSD, "k-")  # black lines, semitransparent alpha=0.1
+    ax.plot(range(0, len(MLD), 1), MLD, "k-")  # black lines, semitransparent alpha=0.1
     plt.show()
 
-    dMSD = pandas.DataFrame(MSD, columns=["MSD (u.u)"])
+
+def saveMLD(MLD, particles):
+    dMSD = pandas.DataFrame(MLD, columns=["MSD (u.u)"])
     dMSD.to_csv("MSD.csv")
 
     # Save simulation results
@@ -373,16 +362,32 @@ def calculateMSD(particles):
         fig, ax = plt.subplots(figsize=(12, 12))
         ax.contourf(x, y, z, 16)  # , cmap='viridis');
         plt.savefig(str(frameN) + ".png")
-        # pylab.show()
 
     print("PNGs printing complete")
     plt.close("all")
 
 
-def calculateMSDNumpy(particles):
+def calculateLinearDistance(particles):
     initialSphere = particles[0]
-    MSD = [0]
-    sumMSD = 0
+    MLD = [0]
+    sumMSD = 0.0
+    for frame in particles:
+        for particleN in frame.index:
+            sumMSD = (
+                sumMSD
+                + (frame.iloc[particleN]["x"] - initialSphere.iloc[particleN]["x"]) ** 2
+                + (frame.iloc[particleN]["y"] - initialSphere.iloc[particleN]["y"]) ** 2
+                + (frame.iloc[particleN]["z"] - initialSphere.iloc[particleN]["z"]) ** 2
+            )
+        MLD.append(np.int32(math.sqrt(sumMSD)) / len(frame.index))
+
+    return MLD
+
+
+def calculateLinearDistanceNumpy(particles):
+    initialSphere = particles[0]
+    MLD = [0]
+    sumMSD = 0.0
     for frame in particles:
         for particleN in range(0, frame.shape[0]):
             sumMSD = (
@@ -391,46 +396,5 @@ def calculateMSDNumpy(particles):
                 + (frame[particleN][1] - initialSphere[particleN][1]) ** 2
                 + (frame[particleN][2] - initialSphere[particleN][2]) ** 2
             )
-        MSD.append(sumMSD / frame.shape[0])
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(range(0, len(MSD), 1), MSD, "k-")  # black lines, semitransparent alpha=0.1
-    plt.show()
-
-    dMSD = pandas.DataFrame(MSD, columns=["MSD (u.u)"])
-    dMSD.to_csv("MSD.csv")
-
-    # Save simulation results
-    for particleN in range(0, len(particles)):
-        pandas.DataFrame(particles[particleN]).to_csv(str(particleN) + ".csv")
-
-    print("Calculation complete. Printing PNGs")
-    maxFrame = particles[-1]
-    xmin = min(maxFrame[0])
-    xmax = max(maxFrame[0])
-    ymin = min(maxFrame[1])
-    ymax = max(maxFrame[1])
-    for frameN in range(0, particles[0].shape[0]):
-        maxIP = pandas.DataFrame(columns=["x", "y", "z"])
-        for x in range(xmin, xmax, 1):
-            for y in range(ymin, ymax, 1):
-                maxIP = maxIP.append(
-                    {
-                        "x": x,
-                        "y": y,
-                        "z": (
-                            (particles[frameN][0] == x) & (particles[frameN][1] == y)
-                        ).sum(),
-                    },
-                    ignore_index=True,
-                )
-        z = maxIP.pivot(columns="x", index="y", values="z")
-        x = z.columns
-        y = z.index
-        fig, ax = plt.subplots(figsize=(12, 12))
-        ax.contourf(x, y, z, 16)  # , cmap='viridis');
-        plt.savefig(str(frameN) + ".png")
-        # pylab.show()
-
-    print("PNGs printing complete")
-    plt.close("all")
+        MLD.append(np.int32(math.sqrt(sumMSD)) / frame.shape[0])
+    return MLD

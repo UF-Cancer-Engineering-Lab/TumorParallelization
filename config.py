@@ -1,6 +1,6 @@
 # ----------------------------------------- Program Parameters --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # defining parameters of the simulation
-n = 100  # number of timeSteps
+n = 10000  # number of timeSteps
 maxTries = 6  # max tries for a particle to move
 particlesNumber = 1  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
@@ -8,3 +8,4 @@ porosityFraction = 0.05  # porosity fraction of particles,
 # each "particle", or "cell" has some void space in it
 capillaryRadius = 5  # radius of x and y axes capilarry freeways
 sphereRadius = 5
+saveResults = False
