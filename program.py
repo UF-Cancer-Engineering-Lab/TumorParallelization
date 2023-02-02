@@ -1,4 +1,5 @@
 from randomWalk import *
+from postProcessing import *
 from octTreeGPU import walkParticlesGPU
 import time
 
