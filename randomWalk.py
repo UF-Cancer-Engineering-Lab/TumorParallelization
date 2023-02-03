@@ -66,6 +66,7 @@ def getInitialSphere(
         initialSphere = initialSphere.drop(labels=val, axis=0).reset_index(drop=True)
         # ^^^ .reset_index method just recalculates the indices so that the gap in indices isn't there anymore
 
+    print("Finished generating initial sphere.")
     return initialSphere
 
 
@@ -135,7 +136,7 @@ def randomWalkCPU(
                     particles[i][particleN] = walkedParticle
                     break
 
-        i % 100 and print("Time steps elapsed: " + str(i))
+        (i % 100 == 0) and print("Time steps elapsed: " + str(i))
     return particles
 
 
@@ -195,5 +196,5 @@ def randomWalkCPUOctTree(
                     particles[i][particleN] = walkedParticle
                     break
 
-        print("Time steps elapsed: " + str(i))
+        (i % 100 == 0) and print("Time steps elapsed: " + str(i))
     return particles

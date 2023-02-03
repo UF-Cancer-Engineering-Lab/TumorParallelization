@@ -6,6 +6,6 @@ particlesNumber = 1  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
 # where porosity fraction is the ratio of void volume to total volume
 # each "particle", or "cell" has some void space in it
-capillaryRadius = 5  # radius of x and y axes capilarry freeways
-sphereRadius = 5
+capillaryRadius = 10  # radius of x and y axes capilarry freeways
+sphereRadius = 20
 saveResults = False
