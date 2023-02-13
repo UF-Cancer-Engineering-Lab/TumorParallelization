@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 from config import *
 import numpy as np
 import math
+from util import particlesToDF
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particlesDF):
-
+def plotCellData(particles):
+    particlesDF = particlesToDF(particles)
     fig = go.Figure(
         data=go.Scatter3d(
             x=[],
