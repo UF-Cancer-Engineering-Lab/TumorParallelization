@@ -13,9 +13,18 @@ import matplotlib.pyplot as plt
 from config import *
 from numba import jit
 from octTreeCPU import *
+from util import particlesToDF
 
 # -----------------------------------------functions for walk algorithms: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def getInitialSphere(
+    particlesNumber=particlesNumber,
+    porosityFraction=porosityFraction,
+    sphereRadius=sphereRadius,
+):
+    return particlesToDF(getInitialSphereNumpy())
+
+
+def getInitialSphereNumpy(
     particlesNumber=particlesNumber,
     porosityFraction=porosityFraction,
     sphereRadius=sphereRadius,
@@ -29,7 +38,7 @@ def getInitialSphere(
     x = 0
     y = 0
     z = 0
-    initialSphere = pandas.DataFrame(columns=["x", "y", "z"])
+    initialSphere = []
     # From the panda library, a Data frame is just a c++ maps that are in the form of arrays
 
     # This while loop is getting all the x, y, z integer values insde of 3D sphere (in all 8 3D quadrants). Each of these combination of x,y,z values,
@@ -37,10 +46,9 @@ def getInitialSphere(
     # set in the limit
     # initialSphere.index returns total rows in the initialSphere dataFrame
     while (
-        len(initialSphere.index) < totalPositions
+        len(initialSphere) < totalPositions
     ):  # len(initialSphere.index) is the number of total rows in the DataFrame
         # print("Loading initial sphere")
-        initialSphere = pandas.DataFrame(columns=["x", "y", "z"], dtype=np.int32)
         sphereRadius = sphereRadius
         for z in range(-sphereRadius, sphereRadius):
             xMax = int(
@@ -54,20 +62,18 @@ def getInitialSphere(
                     # initialSphere = initialSphere.append(
                     #     , ignore_index=True
                     # )
-                    initialSphere.loc[len(initialSphere.index)] = [x, y, z]
+                    initialSphere.append([np.int32(x), np.int32(y), np.int32(z)])
 
-    totalPositions = len(initialSphere.index)
+    totalPositions = len(initialSphere)
     vacancies = round(totalPositions * porosityFraction)
     # print("Initial sphere complete")
 
     # this randomizes the areas where the particles can and cannot go in the sphere
     for i in range(0, vacancies):
-        val = random.randint(0, len(initialSphere.index) - 1)
-        initialSphere = initialSphere.drop(labels=val, axis=0).reset_index(drop=True)
-        # ^^^ .reset_index method just recalculates the indices so that the gap in indices isn't there anymore
+        val = random.randint(0, len(initialSphere) - 1)
+        initialSphere.pop(val)
 
-    print("Finished generating initial sphere.")
-    return initialSphere
+    return np.array(initialSphere, dtype=np.int32)
 
 
 def randomWalkCPU(

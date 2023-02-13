@@ -1,8 +1,9 @@
+import time
 import unittest
 from octTreeGPU import *
 from octTreeCPU import *
 from randomWalk import getInitialSphere
-import os
+import pandas as pd
 from time import sleep
 
 # silence NumbaPerformanceWarning for tests
@@ -16,7 +17,6 @@ class TestOctTree(unittest.TestCase):
         warnings.simplefilter("ignore", category=NumbaPerformanceWarning)
 
     def compareCPUOctTreeLeaves(self, root1: TreeNode, root2: TreeNode):
-
         # If leaf, compare
         isLeaf1 = len(root1.children) == 0
         isLeaf2 = len(root2.children) == 0
@@ -106,7 +106,6 @@ class TestOctTree(unittest.TestCase):
         return newBound
 
     def isValidGPUOctTreeHelper(self, bufferData, currIndex, boundPos, boundRange):
-
         # data at buffer position
         particleID = bufferData[currIndex]
         particlePos = bufferData[currIndex + 1 : currIndex + 4]
@@ -188,7 +187,6 @@ class TestOctTree(unittest.TestCase):
         )
 
     def validateGPUResultHelper(self, gpuResult, currNode: TreeNode, currIndex):
-
         # data at buffer position
         particleID = gpuResult[currIndex]
         particlePos = gpuResult[currIndex + 1 : currIndex + 4]
@@ -271,7 +269,6 @@ class TestOctTree(unittest.TestCase):
         return self.validateGPUResult(bufferData, particlesArr, boundRange)
 
     def clearBufferTest(self, GPUBufferSizeNodes):
-
         buffer = makeGPUTreeBuffer(GPUBufferSizeNodes)
         bufferSize = cuda.device_array(1, dtype=np.int32)
 
@@ -285,7 +282,6 @@ class TestOctTree(unittest.TestCase):
         # Require that all locks and children are reset to -1
         bufferData = getBufferFromGPU(buffer)
         for i in range(GPUBufferSizeNodes):
-
             # data at buffer position
             particleID = bufferData[i * 6]
             particlePos = bufferData[i * 6 + 1 : i * 6 + 4]
