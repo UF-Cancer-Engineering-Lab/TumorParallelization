@@ -1,6 +1,6 @@
 # ----------------------------------------- Program Parameters --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # defining parameters of the simulation
-n = 10000  # number of timeSteps
+n = 1000  # number of timeSteps
 maxTries = 6  # max tries for a particle to move
 particlesNumber = 1  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
