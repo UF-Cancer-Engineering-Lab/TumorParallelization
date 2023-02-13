@@ -5,7 +5,7 @@ Tumor Paralleization research Git
   `git clone https://github.com/imrannasrullah/TumorParallelization.git`
   
 1. Create virutal environment
-  python -m venv .venv
+  `python -m venv .venv`
   
 2. Activate virtual environment 
   Windows: `.\venv\Scripts\activate.bat`
