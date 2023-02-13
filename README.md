@@ -1,6 +1,9 @@
 Tumor Paralleization research Git
 
 # SETUP INSTRUCTIONS
+0. Clone repository
+  `git clone https://github.com/imrannasrullah/TumorParallelization.git`
+  
 1. Activate virtual environment 
   Windows: `.\venv\Scripts\activate.bat`
   Mac/Linux: `source ./venv/bin/activate`
