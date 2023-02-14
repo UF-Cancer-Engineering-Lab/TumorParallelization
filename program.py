@@ -5,9 +5,6 @@ import time
 
 
 # ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-squaredRadius = sphereRadius**2
-squaredCapillaryRadius = capillaryRadius**2
-
 initialSphere = getInitialSphereNumpy()
 startTime = time.perf_counter()
 # particlesCPU = randomWalkCPU(initialSphere)

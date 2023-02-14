@@ -5,12 +5,15 @@ import time
 
 def walkParticlesGPU(
     initialSphere,
-    boundRange=(np.float32)((n + 2 + sphereRadius) * 2),
     maxTries=maxTries,
     n=n,
-    squaredRadius=sphereRadius**2,
-    squaredCapillaryRadius=capillaryRadius**2,
+    capillaryRadius=capillaryRadius,
+    sphereRadius=sphereRadius,
 ):
+    boundRange = (np.float32)((n + 2 + sphereRadius) * 2)
+    squaredRadius = sphereRadius**2
+    squaredCapillaryRadius = capillaryRadius**2
+
     numParticles = np.shape(initialSphere)[0]
     # TODO: Estimate tree size accurately
     GPUBufferSizeNodes = 1000000  # estimateTreeSizeFromLeafCount(numParticles)
