@@ -10,6 +10,7 @@ from config import *
 import numpy as np
 import math
 from util import particlesToDF
+import os
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -122,42 +123,51 @@ def calculateLinearDistanceNumpy(particles):
     return MLD
 
 
-def saveMLD(MLD, particles, outPath=outPath):
+def saveResults(MLD, particles, outPath=outPath):
+    if not os.path.exists(outPath):
+        os.makedirs(outPath)
+
     print("Saving results...")
     dMLD = pandas.DataFrame(MLD, columns=["MLD (u.u)"])
     dMLD.to_csv(outPath + "MLD.csv")
 
     # Save simulation results
-    for particleN in range(0, len(particles)):
-        particles[particleN].to_csv(outPath + str(particleN) + ".csv")
+    particlesDF = particlesToDF(particles)
+    for particleN in range(0, len(particlesDF)):
+        particlesDF[particleN].to_csv(outPath + str(particleN) + ".csv")
 
     print("Calculation complete. Printing PNGs")
-    maxFrame = len(particles) - 1
-    xmin = min(particles[maxFrame]["x"])
-    xmax = max(particles[maxFrame]["x"])
-    ymin = min(particles[maxFrame]["y"])
-    ymax = max(particles[maxFrame]["y"])
+    maxFrame = len(particlesDF) - 1
+    xmin = np.min(particles[maxFrame][:, 0])
+    xmax = np.max(particles[maxFrame][:, 0])
+    ymin = np.min(particles[maxFrame][:, 1])
+    ymax = np.max(particles[maxFrame][:, 1])
     for frameN in range(0, maxFrame):
-        maxIP = pandas.DataFrame(columns=["x", "y", "z"])
+        maxIP = np.zeros(((xmax - xmin) * (ymax - ymin), 3), dtype=np.int32)
         for x in range(xmin, xmax, 1):
             for y in range(ymin, ymax, 1):
-                maxIP = maxIP.append(
-                    {
-                        "x": x,
-                        "y": y,
-                        "z": (
-                            (particles[frameN]["x"] == x)
-                            & (particles[frameN]["y"] == y)
-                        ).sum(),
-                    },
-                    ignore_index=True,
-                )
+                idx = x * (ymax - ymin) + y
+                maxIP[idx] = [
+                    x,
+                    y,
+                    np.sum(
+                        (particles[frameN][:, 0] == x) & (particles[frameN][:, 1] == y)
+                    ),
+                ]
+        maxIP = pandas.DataFrame(
+            {
+                "x": maxIP[:, 0],
+                "y": maxIP[:, 1],
+                "z": maxIP[:, 2],
+            },
+            dtype=np.int32,
+        )
         z = maxIP.pivot(columns="x", index="y", values="z")
         x = z.columns
         y = z.index
         fig, ax = plt.subplots(figsize=(12, 12))
         ax.contourf(x, y, z, 16)  # , cmap='viridis');
         plt.savefig(outPath + str(frameN) + ".png")
+        plt.close("all")
 
     print("PNGs printing complete")
-    plt.close("all")
