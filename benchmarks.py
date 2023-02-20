@@ -4,9 +4,9 @@ from postProcessing import *
 import time
 import plotly.graph_objects as go
 
-n = 5
-sphereRadiusList = range(1, 15)
-algorithms = [randomWalkCPU, randomWalkCPUOctTree, walkParticlesGPU]
+n = 1000
+sphereRadiusList = range(1, 50)
+algorithms = [walkParticlesGPU]
 timings = []
 
 # Note, this disregards other parts of pipeline that were moved to the GPU, like calculateLinearDistanceGPU

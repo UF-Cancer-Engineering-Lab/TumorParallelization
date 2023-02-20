@@ -11,6 +11,7 @@ import numpy as np
 import math
 from util import particlesToDF
 
+
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def plotCellData(particles):
     particlesDF = particlesToDF(particles)
@@ -121,14 +122,14 @@ def calculateLinearDistanceNumpy(particles):
     return MLD
 
 
-def saveMLD(MLD, particles):
+def saveMLD(MLD, particles, outPath=outPath):
     print("Saving results...")
-    dMSD = pandas.DataFrame(MLD, columns=["MSD (u.u)"])
-    dMSD.to_csv("MSD.csv")
+    dMLD = pandas.DataFrame(MLD, columns=["MLD (u.u)"])
+    dMLD.to_csv(outPath + "MLD.csv")
 
     # Save simulation results
     for particleN in range(0, len(particles)):
-        particles[particleN].to_csv(str(particleN) + ".csv")
+        particles[particleN].to_csv(outPath + str(particleN) + ".csv")
 
     print("Calculation complete. Printing PNGs")
     maxFrame = len(particles) - 1
@@ -156,7 +157,7 @@ def saveMLD(MLD, particles):
         y = z.index
         fig, ax = plt.subplots(figsize=(12, 12))
         ax.contourf(x, y, z, 16)  # , cmap='viridis');
-        plt.savefig(str(frameN) + ".png")
+        plt.savefig(outPath + str(frameN) + ".png")
 
     print("PNGs printing complete")
     plt.close("all")

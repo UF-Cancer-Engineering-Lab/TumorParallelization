@@ -9,3 +9,4 @@ porosityFraction = 0.05  # porosity fraction of particles,
 capillaryRadius = 10  # radius of x and y axes capilarry freeways
 sphereRadius = 20
 saveResults = False
+outPath = "./output/"
