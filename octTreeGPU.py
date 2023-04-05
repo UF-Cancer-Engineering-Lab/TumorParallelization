@@ -186,7 +186,7 @@ def randomWalkParticle(
         else:
             walkedParticlePos[2] -= 1
 
-    return 0
+    return
 
 
 @cuda.jit(device=True)
@@ -354,7 +354,7 @@ def buildTree(
         numberOfFailedAttempts = 0
 
         while not insertedNode and numberOfFailedAttempts < maxTries:
-            numberOfFailedAttempts += randomWalkParticle(
+            randomWalkParticle(
                 latestParticles[particleID],
                 walkedParticlePos,
                 shouldRandomWalk,

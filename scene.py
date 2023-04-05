@@ -21,10 +21,10 @@ class Scene:
     def get_boundaries_numpy(self):
         return np.array(
             [
-                np.array([location["x"], location["y"], location["z"]])
+                np.array([np.int32(location["x"]), np.int32(location["y"]), np.int32(location["z"])])
                 for location in self.json_data["boundaries"]
             ]
-        )
+        , dtype=np.int32)
 
 
 def load_scene(scene_path: str) -> Scene:

@@ -10,5 +10,5 @@ sphereRadius = 20
 shouldSaveResults = False
 show3DVisualization = True
 outPath = "./output2/"
-scene_file_name = "empty_scene"
+scene_file_name = "test_scene"
 max_vram_allocation_gb = 1
