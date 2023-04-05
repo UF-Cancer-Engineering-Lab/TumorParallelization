@@ -383,7 +383,8 @@ def readTree(treeBuffer, latestParticles):
     bufferPos = x * NODE_SIZE
     if bufferPos < len(treeBuffer):
         child = treeBuffer[bufferPos + 4]
-        if child == -2:
+        particleType = treeBuffer[bufferPos + 6]
+        if child == -2 and particleType == 1:
             particleID = treeBuffer[bufferPos]
             particleX = treeBuffer[bufferPos + 1]
             particleY = treeBuffer[bufferPos + 2]

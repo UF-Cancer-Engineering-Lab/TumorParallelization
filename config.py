@@ -11,3 +11,4 @@ shouldSaveResults = False
 show3DVisualization = True
 outPath = "./output2/"
 scene_file_name = "empty_scene"
+max_vram_allocation_gb = 1

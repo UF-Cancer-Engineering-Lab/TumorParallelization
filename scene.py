@@ -1,7 +1,6 @@
 import json
 import numpy as np
 from typing import List, TypedDict
-from config import scene_file_name
 
 
 # TODO: Add initialsphere to the scene (no need having it separate)
@@ -28,7 +27,7 @@ class Scene:
         )
 
 
-def load_scene(scene_path: str = scene_file_name) -> Scene:
+def load_scene(scene_path: str) -> Scene:
     # Remove .json extension if present
     scene_path = "./scenes/" + scene_path.replace(".json", "") + ".json"
     json_data = json.load(open(scene_path))
