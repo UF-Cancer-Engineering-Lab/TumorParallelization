@@ -4,7 +4,6 @@ from config import *
 from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 
 # The buffer is organized as follows:
-#   Each "node" is 6 ints
 #       int1 is the ID of the particle
 #       int2 is the x of the particle
 #       int3 is the y of the particle
@@ -17,7 +16,11 @@ from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform
 #           lock will be -1 if unlocked
 #           lock will be -2 if non-leaf node
 #           lock == particleID if the node is locked
-
+#       int7 is for cell type
+#           0 is immovable cell
+#           1 is movable cancer cell
+#       int8 is reserved for now
+NODE_SIZE = 8
 
 def estimateTreeSizeFromLeafCount(leafCount):
     treeSize = leafCount
@@ -28,7 +31,7 @@ def estimateTreeSizeFromLeafCount(leafCount):
 
 
 def makeGPUTreeBuffer(numberOfNodes):
-    return cuda.device_array(numberOfNodes * 6, dtype=np.int32)
+    return cuda.device_array(numberOfNodes * NODE_SIZE, dtype=np.int32)
 
 
 def getBufferFromGPU(cudaBuffer):
@@ -38,16 +41,16 @@ def getBufferFromGPU(cudaBuffer):
 @cuda.jit
 def clearTree(buffer, bufferSize):
     x = cuda.grid(1)
-    nodeCount = len(buffer) // 6
+    nodeCount = len(buffer) // NODE_SIZE
 
     if x == 0:
-        bufferSize[0] = 6  # accounts for root node not being "subdivided"
+        bufferSize[0] = NODE_SIZE  # accounts for root node not being "subdivided"
 
     if x < nodeCount:
         buffer[
-            x * 6 + 4
+            x * NODE_SIZE + 4
         ] = -1  # indicate node is free to insert in (no children, no current particle)
-        buffer[x * 6 + 5] = -1  # reset the locks to -1 to indicate tree is empty
+        buffer[x * NODE_SIZE + 5] = -1  # reset the locks to -1 to indicate tree is empty
 
 
 @cuda.jit(device=True)
@@ -203,7 +206,7 @@ def insertParticle(
         # If current node is non-leaf then traverse to child in correct octant
         if currNode_LOCK_ary[0] == -2:
             currNode_CHILD = treeBuffer[currentNodePos + 4]
-            currentNodePos = currNode_CHILD + nextOctant * 6
+            currentNodePos = currNode_CHILD + nextOctant * NODE_SIZE
             # Also update the boundRange and boundStart for next iteration
             updateBoundStart(boundStart, currentBoundRange, nextOctant)
             currentBoundRange /= 2
@@ -256,7 +259,7 @@ def insertParticle(
 
                         # get the next avaialble index to add nodes in the tree
                         # + 6 because the atomic instruction returns previous value before add
-                        childrenSize = 8 * 6
+                        childrenSize = 8 * NODE_SIZE
                         childNodeIndex = cuda.atomic.add(
                             treeBufferSize, 0, childrenSize
                         )
@@ -276,7 +279,7 @@ def insertParticle(
                         keepSubdividing = offsetExisting == offsetNew
                         subtreeIndex = childNodeIndex
                         if keepSubdividing:
-                            subtreeIndex += 6 * offsetNew
+                            subtreeIndex += NODE_SIZE * offsetNew
 
                     # Invalid buffer position. End thread work.
                     if subtreeIndex >= len(treeBuffer):
@@ -288,7 +291,7 @@ def insertParticle(
                     else:
                         # Move the current and existing into their offset positions
                         # existing
-                        offsetExisting *= 6
+                        offsetExisting *= NODE_SIZE
                         treeBuffer[subtreeIndex + offsetExisting] = treeBuffer[
                             currentNodePos
                         ]
@@ -304,7 +307,7 @@ def insertParticle(
                         treeBuffer[subtreeIndex + offsetExisting + 4] = -2
 
                         # current
-                        offsetNew *= 6
+                        offsetNew *= NODE_SIZE
                         treeBuffer[subtreeIndex + offsetNew] = particleID
                         treeBuffer[subtreeIndex + offsetNew + 1] = walkedParticlePos[0]
                         treeBuffer[subtreeIndex + offsetNew + 2] = walkedParticlePos[1]
@@ -371,7 +374,7 @@ def buildTree(
 def readTree(treeBuffer, latestParticles):
 
     x = cuda.grid(1)
-    bufferPos = x * 6
+    bufferPos = x * NODE_SIZE
     if bufferPos < len(treeBuffer):
         child = treeBuffer[bufferPos + 4]
         if child == -2:

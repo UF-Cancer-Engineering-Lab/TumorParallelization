@@ -6,7 +6,7 @@ particlesNumber = 1  # initial particle count
 porosityFraction = 0.05  # porosity fraction of particles,
 # where porosity fraction is the ratio of void volume to total volume
 # each "particle", or "cell" has some void space in it
-sphereRadius = 10
+sphereRadius = 20
 shouldSaveResults = False
 show3DVisualization = True
 outPath = "./output2/"
