@@ -160,51 +160,30 @@ def particlesSharePosition(particle1, particle2):
 def randomWalkParticle(
     particle,
     walkedParticlePos,
-    squaredRadius,
-    squaredCapillaryRadius,
-    maxTries,
     shouldRandomWalk,
     rng_states,
 ):
-    tries = 0
     walkedParticlePos[0] = particle[0]
     walkedParticlePos[1] = particle[1]
     walkedParticlePos[2] = particle[2]
     if shouldRandomWalk:
-        while tries < maxTries:
-            rnd = 1 + np.int32(
-                xoroshiro128p_uniform_float32(rng_states, cuda.grid(1)) * 6.0
-            )
-            if rnd == 1:
-                walkedParticlePos[0] += 1
-            elif rnd == 2:
-                walkedParticlePos[0] -= 1
-            elif rnd == 3:
-                walkedParticlePos[1] += 1
-            elif rnd == 4:
-                walkedParticlePos[1] -= 1
-            elif rnd == 5:
-                walkedParticlePos[2] += 1
-            else:
-                walkedParticlePos[2] -= 1
+        rnd = np.int32(
+            xoroshiro128p_uniform_float32(rng_states, cuda.grid(1)) * 6.0
+        )
+        if rnd == 0:
+            walkedParticlePos[0] += 1
+        elif rnd == 1:
+            walkedParticlePos[0] -= 1
+        elif rnd == 2:
+            walkedParticlePos[1] += 1
+        elif rnd == 3:
+            walkedParticlePos[1] -= 1
+        elif rnd == 4:
+            walkedParticlePos[2] += 1
+        else:
+            walkedParticlePos[2] -= 1
 
-            # Capillary radius check
-            x_2 = walkedParticlePos[0] ** 2
-            y_2 = walkedParticlePos[1] ** 2
-            z_2 = walkedParticlePos[2] ** 2
-            if (
-                (x_2 + y_2 + z_2) < squaredRadius
-                or (x_2 + z_2) < squaredCapillaryRadius
-                or (y_2 + z_2) < squaredCapillaryRadius
-            ):
-                return tries
-
-            # Reset for next iteration
-            tries += 1
-            walkedParticlePos[0] = particle[0]
-            walkedParticlePos[1] = particle[1]
-            walkedParticlePos[2] = particle[2]
-    return tries
+    return 0
 
 
 @cuda.jit(device=True)
@@ -349,8 +328,6 @@ def buildTree(
     maxTries,
     shouldRandomWalk,
     rng_states,
-    squaredRadius,
-    squaredCapillaryRadius,
 ):
 
     numberOfParticles = len(latestParticles)
@@ -372,9 +349,6 @@ def buildTree(
             numberOfFailedAttempts += randomWalkParticle(
                 latestParticles[particleID],
                 walkedParticlePos,
-                squaredRadius,
-                squaredCapillaryRadius,
-                maxTries,
                 shouldRandomWalk,
                 rng_states,
             )

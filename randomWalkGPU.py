@@ -1,18 +1,17 @@
 from postProcessingGPU import *
 from octTreeGPU import *
+from scene import Scene
 import time
 
 
 def walkParticlesGPU(
     initialSphere,
+    scene:Scene,
     maxTries=maxTries,
     n=n,
-    capillaryRadius=capillaryRadius,
     sphereRadius=sphereRadius,
 ):
     boundRange = (np.float32)((n + 2 + sphereRadius) * 2)
-    squaredRadius = sphereRadius**2
-    squaredCapillaryRadius = capillaryRadius**2
 
     numParticles = np.shape(initialSphere)[0]
     # TODO: Estimate tree size accurately
@@ -44,8 +43,6 @@ def walkParticlesGPU(
             maxTries,
             True,
             create_xoroshiro128p_states(nblocksXBuild * nthreadsX, seed=time.time_ns()),
-            squaredRadius,
-            squaredCapillaryRadius,
         )
         readTree[nblocksXRead, nthreadsX](treeBuffer, latestParticlesGPU)
         # MLD_CUDA_SUM[nblocksXSumMLD, nthreadsX](

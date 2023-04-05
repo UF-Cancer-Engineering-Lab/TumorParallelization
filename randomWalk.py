@@ -78,10 +78,10 @@ def getInitialSphereNumpy(
 
 def randomWalkCPU(
     initialSphere,
+    capillaryRadius,
     n=n,
     maxTries=maxTries,
     sphereRadius=sphereRadius,
-    capillaryRadius=capillaryRadius,
 ):
 
     # Constraints for cell movement
@@ -148,10 +148,10 @@ def randomWalkCPU(
 
 def randomWalkCPUOctTree(
     initialSphere,
+    capillaryRadius,
     n=n,
     maxTries=maxTries,
     sphereRadius=sphereRadius,
-    capillaryRadius=capillaryRadius,
 ):
 
     # Constraints for cell movement
