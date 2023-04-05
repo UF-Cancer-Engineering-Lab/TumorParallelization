@@ -39,6 +39,7 @@ def walkParticlesGPU(
             treeBuffer,
             treeBufferSize,
             latestParticlesGPU,
+            1, # Movable Cancer Cell
             boundRange,
             maxTries,
             True,

@@ -191,7 +191,7 @@ def randomWalkParticle(
 
 @cuda.jit(device=True)
 def insertParticle(
-    treeBuffer, treeBufferSize, walkedParticlePos, boundStart, boundRange
+    treeBuffer, treeBufferSize, walkedParticlePos, particleType, boundStart, boundRange
 ):
     currentNodePos = 0
     particleID = cuda.grid(1)
@@ -223,6 +223,7 @@ def insertParticle(
                 treeBuffer[currentNodePos + 1] = walkedParticlePos[0]
                 treeBuffer[currentNodePos + 2] = walkedParticlePos[1]
                 treeBuffer[currentNodePos + 3] = walkedParticlePos[2]
+                treeBuffer[currentNodePos + 6] = particleType
                 treeBuffer[
                     currentNodePos + 4
                 ] = -2  # Indicate there is a particle here now
@@ -304,6 +305,8 @@ def insertParticle(
                         treeBuffer[
                             subtreeIndex + offsetExisting + 3
                         ] = existingParticlePos[2]
+                        treeBuffer[subtreeIndex + offsetExisting + 6] = treeBuffer[currentNodePos + 6]
+                        
                         treeBuffer[subtreeIndex + offsetExisting + 4] = -2
 
                         # current
@@ -312,6 +315,7 @@ def insertParticle(
                         treeBuffer[subtreeIndex + offsetNew + 1] = walkedParticlePos[0]
                         treeBuffer[subtreeIndex + offsetNew + 2] = walkedParticlePos[1]
                         treeBuffer[subtreeIndex + offsetNew + 3] = walkedParticlePos[2]
+                        treeBuffer[subtreeIndex + offsetNew + 6] = particleType
                         treeBuffer[subtreeIndex + offsetNew + 4] = -2
 
                         insertedNode = True
@@ -327,6 +331,7 @@ def buildTree(
     treeBuffer,
     treeBufferSize,
     latestParticles,
+    particleType,
     boundRange,
     maxTries,
     shouldRandomWalk,
@@ -359,6 +364,7 @@ def buildTree(
                 treeBuffer,
                 treeBufferSize,
                 walkedParticlePos,
+                particleType,
                 boundStart,
                 currentBoundRange,
             )
