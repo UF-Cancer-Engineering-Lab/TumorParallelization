@@ -22,6 +22,31 @@ from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform
 #       int8 is reserved for now
 NODE_SIZE = 8
 
+def print_gpu(particles):
+    def print_node(index, indent = 0):
+        id = particles[index]
+        position = particles[index+1:index+4]
+        childNode = particles[index + 4]
+        lock = particles[index + 5]
+        cell_type = particles[index + 6]
+        indent = " " * indent
+        print(indent + " " + str(id) + "  " + str(position) + "  " + str(childNode) + "  " + str(lock) + "  " + str(cell_type))
+
+    def print_gpu_level(index, indent = 0):
+        if index >= np.shape(particles)[0]:
+            return
+        for i in range(8):
+            cell_base_index = index + NODE_SIZE * i
+            childNode = particles[cell_base_index + 4]
+            print_node(cell_base_index, indent)
+            if(childNode > 0):
+                print_gpu_level(childNode, indent + 1)
+
+    print(np.shape(particles))
+    print_node(0)
+    print_gpu_level(NODE_SIZE, 1)
+
+
 def estimateTreeSizeFromLeafCount(leafCount):
     treeSize = leafCount
     while leafCount > 0:
