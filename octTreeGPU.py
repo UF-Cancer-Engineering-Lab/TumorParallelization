@@ -4,7 +4,6 @@ from config import *
 from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform_float32
 
 # The buffer is organized as follows:
-#   Each "node" is 6 ints
 #       int1 is the ID of the particle
 #       int2 is the x of the particle
 #       int3 is the y of the particle
@@ -17,6 +16,35 @@ from numba.cuda.random import create_xoroshiro128p_states, xoroshiro128p_uniform
 #           lock will be -1 if unlocked
 #           lock will be -2 if non-leaf node
 #           lock == particleID if the node is locked
+#       int7 is for cell type
+#           0 is immovable cell
+#           1 is movable cancer cell
+#       int8 is reserved for now
+NODE_SIZE = 8
+
+def print_gpu(particles):
+    def print_node(index, indent = 0):
+        id = particles[index]
+        position = particles[index+1:index+4]
+        childNode = particles[index + 4]
+        lock = particles[index + 5]
+        cell_type = particles[index + 6]
+        indent = " " * indent
+        print(indent + " " + str(id) + "  " + str(position) + "  " + str(childNode) + "  " + str(lock) + "  " + str(cell_type))
+
+    def print_gpu_level(index, indent = 0):
+        if index >= np.shape(particles)[0]:
+            return
+        for i in range(8):
+            cell_base_index = index + NODE_SIZE * i
+            childNode = particles[cell_base_index + 4]
+            print_node(cell_base_index, indent)
+            if(childNode > 0):
+                print_gpu_level(childNode, indent + 1)
+
+    print(np.shape(particles))
+    print_node(0)
+    print_gpu_level(NODE_SIZE, 1)
 
 
 def estimateTreeSizeFromLeafCount(leafCount):
@@ -28,7 +56,7 @@ def estimateTreeSizeFromLeafCount(leafCount):
 
 
 def makeGPUTreeBuffer(numberOfNodes):
-    return cuda.device_array(numberOfNodes * 6, dtype=np.int32)
+    return cuda.device_array(numberOfNodes * NODE_SIZE, dtype=np.int32)
 
 
 def getBufferFromGPU(cudaBuffer):
@@ -38,16 +66,16 @@ def getBufferFromGPU(cudaBuffer):
 @cuda.jit
 def clearTree(buffer, bufferSize):
     x = cuda.grid(1)
-    nodeCount = len(buffer) // 6
+    nodeCount = len(buffer) // NODE_SIZE
 
     if x == 0:
-        bufferSize[0] = 6  # accounts for root node not being "subdivided"
+        bufferSize[0] = NODE_SIZE  # accounts for root node not being "subdivided"
 
     if x < nodeCount:
         buffer[
-            x * 6 + 4
+            x * NODE_SIZE + 4
         ] = -1  # indicate node is free to insert in (no children, no current particle)
-        buffer[x * 6 + 5] = -1  # reset the locks to -1 to indicate tree is empty
+        buffer[x * NODE_SIZE + 5] = -1  # reset the locks to -1 to indicate tree is empty
 
 
 @cuda.jit(device=True)
@@ -160,56 +188,35 @@ def particlesSharePosition(particle1, particle2):
 def randomWalkParticle(
     particle,
     walkedParticlePos,
-    squaredRadius,
-    squaredCapillaryRadius,
-    maxTries,
     shouldRandomWalk,
     rng_states,
 ):
-    tries = 0
     walkedParticlePos[0] = particle[0]
     walkedParticlePos[1] = particle[1]
     walkedParticlePos[2] = particle[2]
     if shouldRandomWalk:
-        while tries < maxTries:
-            rnd = 1 + np.int32(
-                xoroshiro128p_uniform_float32(rng_states, cuda.grid(1)) * 6.0
-            )
-            if rnd == 1:
-                walkedParticlePos[0] += 1
-            elif rnd == 2:
-                walkedParticlePos[0] -= 1
-            elif rnd == 3:
-                walkedParticlePos[1] += 1
-            elif rnd == 4:
-                walkedParticlePos[1] -= 1
-            elif rnd == 5:
-                walkedParticlePos[2] += 1
-            else:
-                walkedParticlePos[2] -= 1
+        rnd = np.int32(
+            xoroshiro128p_uniform_float32(rng_states, cuda.grid(1)) * 6.0
+        )
+        if rnd == 0:
+            walkedParticlePos[0] += 1
+        elif rnd == 1:
+            walkedParticlePos[0] -= 1
+        elif rnd == 2:
+            walkedParticlePos[1] += 1
+        elif rnd == 3:
+            walkedParticlePos[1] -= 1
+        elif rnd == 4:
+            walkedParticlePos[2] += 1
+        else:
+            walkedParticlePos[2] -= 1
 
-            # Capillary radius check
-            x_2 = walkedParticlePos[0] ** 2
-            y_2 = walkedParticlePos[1] ** 2
-            z_2 = walkedParticlePos[2] ** 2
-            if (
-                (x_2 + y_2 + z_2) < squaredRadius
-                or (x_2 + z_2) < squaredCapillaryRadius
-                or (y_2 + z_2) < squaredCapillaryRadius
-            ):
-                return tries
-
-            # Reset for next iteration
-            tries += 1
-            walkedParticlePos[0] = particle[0]
-            walkedParticlePos[1] = particle[1]
-            walkedParticlePos[2] = particle[2]
-    return tries
+    return
 
 
 @cuda.jit(device=True)
 def insertParticle(
-    treeBuffer, treeBufferSize, walkedParticlePos, boundStart, boundRange
+    treeBuffer, treeBufferSize, walkedParticlePos, particleType, boundStart, boundRange
 ):
     currentNodePos = 0
     particleID = cuda.grid(1)
@@ -224,7 +231,7 @@ def insertParticle(
         # If current node is non-leaf then traverse to child in correct octant
         if currNode_LOCK_ary[0] == -2:
             currNode_CHILD = treeBuffer[currentNodePos + 4]
-            currentNodePos = currNode_CHILD + nextOctant * 6
+            currentNodePos = currNode_CHILD + nextOctant * NODE_SIZE
             # Also update the boundRange and boundStart for next iteration
             updateBoundStart(boundStart, currentBoundRange, nextOctant)
             currentBoundRange /= 2
@@ -241,6 +248,7 @@ def insertParticle(
                 treeBuffer[currentNodePos + 1] = walkedParticlePos[0]
                 treeBuffer[currentNodePos + 2] = walkedParticlePos[1]
                 treeBuffer[currentNodePos + 3] = walkedParticlePos[2]
+                treeBuffer[currentNodePos + 6] = particleType
                 treeBuffer[
                     currentNodePos + 4
                 ] = -2  # Indicate there is a particle here now
@@ -277,7 +285,7 @@ def insertParticle(
 
                         # get the next avaialble index to add nodes in the tree
                         # + 6 because the atomic instruction returns previous value before add
-                        childrenSize = 8 * 6
+                        childrenSize = 8 * NODE_SIZE
                         childNodeIndex = cuda.atomic.add(
                             treeBufferSize, 0, childrenSize
                         )
@@ -297,7 +305,7 @@ def insertParticle(
                         keepSubdividing = offsetExisting == offsetNew
                         subtreeIndex = childNodeIndex
                         if keepSubdividing:
-                            subtreeIndex += 6 * offsetNew
+                            subtreeIndex += NODE_SIZE * offsetNew
 
                     # Invalid buffer position. End thread work.
                     if subtreeIndex >= len(treeBuffer):
@@ -309,7 +317,7 @@ def insertParticle(
                     else:
                         # Move the current and existing into their offset positions
                         # existing
-                        offsetExisting *= 6
+                        offsetExisting *= NODE_SIZE
                         treeBuffer[subtreeIndex + offsetExisting] = treeBuffer[
                             currentNodePos
                         ]
@@ -322,14 +330,17 @@ def insertParticle(
                         treeBuffer[
                             subtreeIndex + offsetExisting + 3
                         ] = existingParticlePos[2]
+                        treeBuffer[subtreeIndex + offsetExisting + 6] = treeBuffer[currentNodePos + 6]
+                        
                         treeBuffer[subtreeIndex + offsetExisting + 4] = -2
 
                         # current
-                        offsetNew *= 6
+                        offsetNew *= NODE_SIZE
                         treeBuffer[subtreeIndex + offsetNew] = particleID
                         treeBuffer[subtreeIndex + offsetNew + 1] = walkedParticlePos[0]
                         treeBuffer[subtreeIndex + offsetNew + 2] = walkedParticlePos[1]
                         treeBuffer[subtreeIndex + offsetNew + 3] = walkedParticlePos[2]
+                        treeBuffer[subtreeIndex + offsetNew + 6] = particleType
                         treeBuffer[subtreeIndex + offsetNew + 4] = -2
 
                         insertedNode = True
@@ -345,12 +356,11 @@ def buildTree(
     treeBuffer,
     treeBufferSize,
     latestParticles,
+    particleType,
     boundRange,
     maxTries,
     shouldRandomWalk,
     rng_states,
-    squaredRadius,
-    squaredCapillaryRadius,
 ):
 
     numberOfParticles = len(latestParticles)
@@ -369,12 +379,9 @@ def buildTree(
         numberOfFailedAttempts = 0
 
         while not insertedNode and numberOfFailedAttempts < maxTries:
-            numberOfFailedAttempts += randomWalkParticle(
+            randomWalkParticle(
                 latestParticles[particleID],
                 walkedParticlePos,
-                squaredRadius,
-                squaredCapillaryRadius,
-                maxTries,
                 shouldRandomWalk,
                 rng_states,
             )
@@ -382,6 +389,7 @@ def buildTree(
                 treeBuffer,
                 treeBufferSize,
                 walkedParticlePos,
+                particleType,
                 boundStart,
                 currentBoundRange,
             )
@@ -397,10 +405,11 @@ def buildTree(
 def readTree(treeBuffer, latestParticles):
 
     x = cuda.grid(1)
-    bufferPos = x * 6
+    bufferPos = x * NODE_SIZE
     if bufferPos < len(treeBuffer):
         child = treeBuffer[bufferPos + 4]
-        if child == -2:
+        particleType = treeBuffer[bufferPos + 6]
+        if child == -2 and particleType == 1:
             particleID = treeBuffer[bufferPos]
             particleX = treeBuffer[bufferPos + 1]
             particleY = treeBuffer[bufferPos + 2]
