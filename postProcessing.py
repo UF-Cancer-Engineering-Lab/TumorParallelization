@@ -11,20 +11,35 @@ import numpy as np
 import math
 from util import particlesToDF
 import os
+from scene import Scene
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particles):
+def plotCellData(particles, scene: Scene):
+    boundaries = scene.get_boundaries_numpy()
+    boundaries = particlesToDF([boundaries])[0]
     particlesDF = particlesToDF(particles)
     fig = go.Figure(
-        data=go.Scatter3d(
-            x=[],
-            y=[],
-            z=[],
-            marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
-            opacity=0.8,
-            mode="markers",
-        ),
+        data=[
+            go.Scatter3d(
+                x=[],
+                y=[],
+                z=[],
+                marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
+                opacity=0.8,
+                mode="markers",
+                name="particles",
+            ),
+            go.Scatter3d(
+                x=[],
+                y=[],
+                z=[],
+                marker=go.scatter3d.Marker(size=3, color="red", opacity=0.8),
+                opacity=0.8,
+                mode="markers",
+                name="boundaries",
+            ),
+        ],
     )
 
     frames = [
@@ -34,9 +49,14 @@ def plotCellData(particles):
                     x=particlesDF[frame]["x"],
                     y=particlesDF[frame]["y"],
                     z=particlesDF[frame]["z"],
-                )
+                ),
+                go.Scatter3d(
+                    x=boundaries["x"],
+                    y=boundaries["y"],
+                    z=boundaries["z"]
+                ),
             ],
-            traces=[0],
+            traces=[0, 1],
             name=f"frame{frame}",
         )
         for frame in range(len(particlesDF))

@@ -14,7 +14,7 @@ particles = walkParticlesGPU(initialSphere, scene)
 MLD = calculateLinearDistanceGPU(particles)
 
 print("Time to complete simulation (s): " + str(time.perf_counter() - startTime))
-show3DVisualization and plotCellData(particles)
+show3DVisualization and plotCellData(particles, scene)
 
 print("Calculating mean linear displacement...")
 plotMLD(MLD)

@@ -49,8 +49,6 @@ def walkParticlesGPU(
     static_tree_data.copy_to_device(treeBuffer[0:static_tree_data_size])
     # TODO: Deallocate immovable_particles_list_gpu
 
-    print_gpu(static_tree_data.copy_to_host())
-
     # Walk Particles
     particles = [initialSphere]
     latestParticlesGPU = cuda.to_device(initialSphere)
