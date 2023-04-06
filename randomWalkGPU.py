@@ -60,12 +60,28 @@ def walkParticlesGPU(
     nblocksXRead = nblocksXClear
     for i in range(1, n + 1):
         i % 100 == 0 and print(i)
+        # cuda.synchronize()
+        # print("About to clear tree")
         clearTree[nblocksXClear, nthreadsX](
             treeBuffer, treeBufferSize
         )
+        # cuda.synchronize()
+        # print("Cleared tree")
         # treeBuffer[0:static_tree_data_size].copy_to_device(
         #     static_tree_data[0:static_tree_data_size]
         # )
+        buildTree[nblocksXBuild, nthreadsX](
+            treeBuffer,
+            treeBufferSize,
+            immovable_particles_list_gpu,
+            0,  # Movable Cancer Cell
+            boundRange,
+            maxTries,
+            True,
+            create_xoroshiro128p_states(nblocksXBuild * nthreadsX, seed=time.time_ns()),
+        )
+        # cuda.synchronize()
+        # print("Copied Buffer")
         buildTree[nblocksXBuild, nthreadsX](
             treeBuffer,
             treeBufferSize,
@@ -76,7 +92,11 @@ def walkParticlesGPU(
             True,
             create_xoroshiro128p_states(nblocksXBuild * nthreadsX, seed=time.time_ns()),
         )
+        # cuda.synchronize()
+        # print("Built Tree")
         readTree[nblocksXRead, nthreadsX](treeBuffer, latestParticlesGPU)
+        # cuda.synchronize()
+        # print("Read Tree")
 
         latestParticlesData = getBufferFromGPU(latestParticlesGPU)
         particles.append(latestParticlesData)
