@@ -1,15 +1,16 @@
 Tumor Paralleization research Git
 
 # SETUP INSTRUCTIONS
-0. Clone repository
-  `git clone https://github.com/imrannasrullah/TumorParallelization.git`
+0. Clone repository<br/>
+  `git clone https://github.com/imrannasrullah/TumorParallelization.git`<br/>
+  `cd ./TumorParallelization`
   
 1. Create virutal environment
   `python -m venv .venv`
   
-2. Activate virtual environment 
-  Windows: `.\venv\Scripts\activate.bat`
-  Mac/Linux: `source ./venv/bin/activate`
+2. Activate virtual environment <br/>
+  Windows: `.\.venv\Scripts\activate.bat`<br/>
+  Mac/Linux: `source ./.venv/bin/activate`
   
 3. Install Requirements
 `pip install -r requirements.txt`
