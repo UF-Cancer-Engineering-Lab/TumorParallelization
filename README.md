@@ -14,6 +14,8 @@ Tumor Paralleization research Git
 3. Install Requirements
 `pip install -r requirements.txt`
 
-4. Go to config.py and change parameters as desired
+4. Install NVIDIA's [CUDA TOOLKIT](https://developer.nvidia.com/cuda-downloads)
 
-5. Run program.py
+5. Go to config.py and change parameters as desired
+
+6. Run program.py

@@ -9,7 +9,6 @@ import numpy as np
 import random
 import pandas
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 from config import *
 from numba import jit
 from octTreeCPU import *
