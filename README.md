@@ -2,7 +2,7 @@ Tumor Paralleization research Git
 
 # SETUP INSTRUCTIONS
 0. Clone repository<br/>
-  `git clone https://github.com/imrannasrullah/TumorParallelization.git`<br/>
+  `git clone https://github.com/UF-Cancer-Engineering-Lab/TumorParallelization/tree/replace-numba-with-cuda`<br/>
   `cd ./TumorParallelization`
   
 1. Create virutal environment
@@ -16,6 +16,10 @@ Tumor Paralleization research Git
 `pip install -r requirements.txt`
 
 4. Install NVIDIA's [CUDA TOOLKIT](https://developer.nvidia.com/cuda-downloads)
+
+5. Build Cuda Kernels<br/>
+`compile_cuda_kernels.bat` (Windows)<br/>
+`compile_cuda_kernels.sh` (Linux)
 
 5. Go to config.py and change parameters as desired
 
