@@ -2,7 +2,7 @@
 
 __global__ void clear_tree(int* buffer, int* buffer_size) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
-    printf("In clear tree!");
+    printf("In clear tree!\n");
 }
 
 py::list walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries) {
@@ -10,6 +10,8 @@ py::list walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int>
     // Create the list to hold the arrays
     py::list resultList;
 
+    clear_tree << <1, 1 >> > (nullptr, nullptr);
+    cudaDeviceSynchronize();
     //// Create and append the NumPy arrays to the list
     //py::array_t<int> array1({ 2, 2 });
     //auto buffer1 = array1.request();
