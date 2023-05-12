@@ -27,4 +27,4 @@ set_target_properties(cuda_kernels PROPERTIES CUDA_ARCHITECTURES "72")
 target_link_libraries(cuda_kernels PRIVATE pybind11::module)
 
 # Post Build
-add_custom_command(TARGET cuda_kernels POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:cuda_kernels> ${CMAKE_SOURCE_DIR}/../.venv/Lib/site-packages)
+add_custom_command(TARGET cuda_kernels POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:cuda_kernels> ${CMAKE_SOURCE_DIR})
