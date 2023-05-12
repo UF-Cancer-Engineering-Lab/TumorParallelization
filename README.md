@@ -19,7 +19,7 @@ Tumor Paralleization research Git
 
 5. Build Cuda Kernels<br/>
 `compile_cuda_kernels.bat` (Windows)<br/>
-`chmod + x compile_cuda_kernels.sh && ./compile_cuda_kernels.sh` (Linux)
+`chmod +x compile_cuda_kernels.sh && ./compile_cuda_kernels.sh` (Linux)
 
 5. Go to config.py and change parameters as desired
 
