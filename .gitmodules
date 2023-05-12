@@ -1,3 +1,0 @@
-[submodule "cuda_kernels/pybind11"]
-	path = cuda_kernels/pybind11
-	url = git@github.com:pybind/pybind11.git
