@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 if (NOT EXISTS "${CMAKE_SOURCE_DIR}/pybind11")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} git clone git@github.com:pybind/pybind11.git)
-else()
-    execute_process(COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR}/pybind11 git pull)
+    message( FATAL_ERROR "Please make sure pybind11 is cloned as a submodule. Run \"git submodule update --init\"")
 endif()
 
 project(cuda_kernels LANGUAGES CXX CUDA)
