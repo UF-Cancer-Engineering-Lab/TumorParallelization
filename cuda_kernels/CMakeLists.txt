@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-if (NOT EXISTS "${CMAKE_SOURCE_DIR}/pybind11")
+if (NOT EXISTS "${CMAKE_SOURCE_DIR}/pybind11/.gitignore")
     message( FATAL_ERROR "Please make sure pybind11 is cloned as a submodule. Run \"git submodule update --init\"")
 endif()
 
