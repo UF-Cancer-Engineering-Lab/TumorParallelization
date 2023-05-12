@@ -20,7 +20,6 @@ file(GLOB_RECURSE SRC
 PYBIND11_ADD_MODULE(cuda_kernels ${SRC})
 
 # Configure
-set_target_properties(cuda_kernels PROPERTIES CUDA_ARCHITECTURES "50;72")
 
 # Link
 target_link_libraries(cuda_kernels PRIVATE pybind11::module)
