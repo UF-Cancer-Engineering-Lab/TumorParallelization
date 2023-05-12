@@ -369,3 +369,5 @@ build-linux/*
 !assets/**
 README.pdf
 .vscode/*
+*.so
+*.pyd
