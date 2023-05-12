@@ -4,3 +4,6 @@ mkdir build
 cd ./build
 cmake ..
 make
+cd ..
+cd ..
+python3 setup.py
