@@ -2,7 +2,7 @@ Tumor Paralleization research Git
 
 # SETUP INSTRUCTIONS
 0. Clone repository<br/>
-  `git clone https://github.com/UF-Cancer-Engineering-Lab/TumorParallelization/tree/replace-numba-with-cuda`<br/>
+  `git clone https://github.com/UF-Cancer-Engineering-Lab/TumorParallelization/tree/replace-numba-with-cuda --recursive`<br/>
   `cd ./TumorParallelization`
   
 1. Create virutal environment
