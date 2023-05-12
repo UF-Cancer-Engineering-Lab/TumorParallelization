@@ -4,6 +4,7 @@ if (NOT EXISTS "${CMAKE_SOURCE_DIR}/pybind11/.gitignore")
     message( FATAL_ERROR "Please make sure pybind11 is cloned as a submodule. Run \"git submodule update --init\"")
 endif()
 
+set(CMAKE_CXX_STANDARD 11)
 project(cuda_kernels LANGUAGES CXX CUDA)
 
 # PyBind
