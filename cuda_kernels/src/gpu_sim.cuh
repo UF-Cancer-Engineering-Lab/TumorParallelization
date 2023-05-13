@@ -22,8 +22,30 @@ namespace py = pybind11;
 //           1 is movable cancer cell
 //       int8 is reserved for now
 
+const int NODE_SIZE_INT = 8;
+const int NODE_SIZE_BYTES = NODE_SIZE_INT * 4;
+
+const int ID_OFFSET         = 0;
+const int X_OFFSET          = 1;
+const int Y_OFFSET          = 2;
+const int Z_OFFSET          = 3;
+const int CHILD_OFFSET      = 4;
+const int LOCK_OFFSET       = 5;
+const int TYPE_OFFSET       = 6;
+const int RESERVED_OFFSET   = 7;
+
+const int NO_CHILD_NO_PARTICLE  = -1;
+const int PARTICLE_NO_CHILD     = -2;
+const int UNLOCKED              = -1;
+const int BARRIER_CELL          = 0;
+const int CANCER_CELL           = 1;
+
+// Device Kernels
 __global__ void clear_tree(int* buffer, int* buffer_size);
-py::list walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries=6);
+
+// Host Functions
+void h_clear_tree(int *buffer, int *used_buffer_size, unsigned int num_buffer_nodes, bool async);
+py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries);
 
 int haroon_print() {
     std::cout << "Hello ffrom c++" << std::endl;
