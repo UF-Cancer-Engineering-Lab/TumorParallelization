@@ -5,6 +5,13 @@
   },
   "files.associations": {
     "filesystem": "cpp",
-    "atomic": "cpp"
+    "atomic": "cpp",
+    "ostream": "cpp",
+    "deque": "cpp",
+    "forward_list": "cpp",
+    "list": "cpp",
+    "valarray": "cpp",
+    "vector": "cpp",
+    "xstring": "cpp"
   }
 }

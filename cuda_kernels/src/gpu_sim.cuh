@@ -1,7 +1,8 @@
 #pragma once
-#include <stdio.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <stdio.h>
+
 #include <iostream>
 namespace py = pybind11;
 
@@ -25,26 +26,27 @@ namespace py = pybind11;
 const int NODE_SIZE_INT = 8;
 const int NODE_SIZE_BYTES = NODE_SIZE_INT * 4;
 
-const int ID_OFFSET         = 0;
-const int X_OFFSET          = 1;
-const int Y_OFFSET          = 2;
-const int Z_OFFSET          = 3;
-const int CHILD_OFFSET      = 4;
-const int LOCK_OFFSET       = 5;
-const int TYPE_OFFSET       = 6;
-const int RESERVED_OFFSET   = 7;
+const int ID_OFFSET = 0;
+const int X_OFFSET = 1;
+const int Y_OFFSET = 2;
+const int Z_OFFSET = 3;
+const int CHILD_OFFSET = 4;
+const int LOCK_OFFSET = 5;
+const int TYPE_OFFSET = 6;
+const int RESERVED_OFFSET = 7;
 
-const int NO_CHILD_NO_PARTICLE  = -1;
-const int PARTICLE_NO_CHILD     = -2;
-const int UNLOCKED              = -1;
-const int BARRIER_CELL          = 0;
-const int CANCER_CELL           = 1;
+const int NO_CHILD_NO_PARTICLE = -1;
+const int PARTICLE_NO_CHILD = -2;
+const int UNLOCKED = -1;
+const int BARRIER_CELL = 0;
+const int CANCER_CELL = 1;
 
 // Device Kernels
-__global__ void clear_tree(int* buffer, int* buffer_size);
+__global__ void clear_tree(int* tree_buffer, int* used_buffer_size, unsigned int num_buffer_nodes);
 
 // Host Functions
-void h_clear_tree(int *buffer, int *used_buffer_size, unsigned int num_buffer_nodes, bool async);
+void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int num_buffer_nodes);
+void h_clear_tree(int* gpu_tree_buffer, int* used_buffer_size, unsigned int num_buffer_nodes, bool async);
 py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries);
 
 int haroon_print() {
