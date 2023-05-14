@@ -34,12 +34,12 @@ __global__ void clear_tree(int *tree_buffer, int *used_buffer_size, unsigned int
     }
 }
 
-py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries) {
-    // Create gpu buffers
-    const unsigned int desired_node_count = 9;
+py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool run_clear_kernel, bool run_build_kernel, bool return_gpu_tree_buffer, int buffer_size_nodes) {
+    // Create gpu tree buffer
+    const unsigned int desired_node_count = buffer_size_nodes;
     int *gpu_tree_buffer = nullptr;
-    size_t gpu_buffer_size = desired_node_count * NODE_SIZE_BYTES;
-    cudaMalloc(&gpu_tree_buffer, gpu_buffer_size);
+    size_t gpu_tree_buffer_size = desired_node_count * NODE_SIZE_BYTES;
+    cudaMalloc(&gpu_tree_buffer, gpu_tree_buffer_size);
 
     // Send particle data to the gpu
     size_t particle_count = initial_particles.shape(0);
@@ -49,11 +49,12 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
     cudaMalloc(&gpu_particles_buffer, gpu_particles_buffer_size);
     cudaMemcpy(gpu_particles_buffer, initial_particles_ptr, gpu_particles_buffer_size, cudaMemcpyHostToDevice);
 
+    // Create numpy list to hold result
     std::vector<size_t> shape = {number_of_timesteps * particle_count * 3};
     py::array_t<int> result_array(shape);
     int *result_array_ptr = static_cast<int *>(result_array.request().ptr);
 
-    // Run Kernels
+    // Run Kernels for each timestep
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
         h_clear_tree(gpu_tree_buffer, nullptr, desired_node_count, true);
 
@@ -64,8 +65,17 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
         cudaMemcpy(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
     }
 
-    print_gpu_tree_buffer(gpu_tree_buffer, desired_node_count);
+    // Change windowing for python numpy array
     result_array.resize({(size_t)number_of_timesteps, (size_t)particle_count, (size_t)3});
+
+    // Only used for testing
+    if (return_gpu_tree_buffer) {
+        std::vector<size_t> shape = {desired_node_count * NODE_SIZE_INT};
+        py::array_t<int> gpu_tree_result(shape);
+        int *gpu_tree_result_ptr = static_cast<int *>(gpu_tree_result.request().ptr);
+        cudaMemcpy(gpu_tree_result_ptr, gpu_tree_buffer, gpu_tree_buffer_size, cudaMemcpyDeviceToHost);
+        return gpu_tree_result;
+    }
 
     // Cleanup
     cudaFree(gpu_tree_buffer);

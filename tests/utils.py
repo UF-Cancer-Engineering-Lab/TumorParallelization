@@ -1,35 +1,21 @@
 import numpy as np
+import sys
+import os
+import cuda_kernels
+
+parent_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_folder)
 from octTreeCPU import TreeNode, buildTreeCPU
-from octTreeGPU import clearTree, buildTree, getBufferFromGPU, makeGPUTreeBuffer
-from numba import cuda
 
-def buildTreeGPU(particles):
-    GPUBufferSizeNodes = 10000000
 
-    buffer = makeGPUTreeBuffer(GPUBufferSizeNodes)
-    bufferSize = cuda.device_array(1, dtype=np.int32)
-    latestParticlesGPU = cuda.to_device(particles)
-    boundRange = np.float32((max(particles.abs().max()) + 1) * 2)
-
-    nthreadsX = 32
-    nblocksXClear = (GPUBufferSizeNodes // nthreadsX) + 1
-    nblocksXBuild = (len(particles) // nthreadsX) + 1
-
-    clearTree[nblocksXClear, nthreadsX](buffer, bufferSize)
-    buildTree[nblocksXBuild, nthreadsX](
-        buffer,
-        bufferSize,
-        latestParticlesGPU,
-        boundRange,
-        maxTries,
-        False,
-        None,
-        sphereRadius**2,
-        capillaryRadius**2,
+##################
+# Agreements Utils
+##################
+def buildTreeGPU(inputParticles, boundRange):
+    return cuda_kernels.walk_particles_gpu(
+        inputParticles, [], 1, boundRange, return_gpu_tree_buffer=True
     )
-    bufferData = getBufferFromGPU(buffer)
 
-    return bufferData
 
 def testAgreementCPU_GPU_Helper(gpuBuffer, currNode: TreeNode, currIndex):
     # data at buffer position
@@ -77,8 +63,14 @@ def testAgreementCPU_GPU_Helper(gpuBuffer, currNode: TreeNode, currIndex):
     # print("Invalid Algorithm State Detected.")
     return False
 
-def testAgreementCPU_GPU(inputParticles, boundRange):
-    boundRange = np.float32((max(inputParticles.abs().max()) + 1) * 2)
+
+def testAgreementCPU_GPU(inputParticles):
+    boundRange = np.float32(np.max(np.absolute(inputParticles)) + 1) * 2.0
     root = buildTreeCPU(inputParticles, boundRange)
-    gpuBuffer = buildTreeGPU(inputParticles)
+    gpuBuffer = buildTreeGPU(inputParticles, boundRange)
     return testAgreementCPU_GPU_Helper(gpuBuffer, root, 0)
+
+
+##################
+# Validation Utils
+##################

@@ -47,7 +47,7 @@ __global__ void clear_tree(int* tree_buffer, int* used_buffer_size, unsigned int
 // Host Functions
 void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int num_buffer_nodes);
 void h_clear_tree(int* gpu_tree_buffer, int* used_buffer_size, unsigned int num_buffer_nodes, bool async);
-py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries);
+py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool run_clear_kernel, bool run_build_kernel, bool return_gpu_tree_buffer, int buffer_size_nodes);
 
 int haroon_print() {
     std::cout << "Hello ffrom c++" << std::endl;
@@ -55,6 +55,15 @@ int haroon_print() {
 }
 
 PYBIND11_MODULE(cuda_kernels, m) {
-    m.def("walk_particles_gpu", &walk_particles_gpu, "Perform the walk particles gpu sim");
+    m.def("walk_particles_gpu", &walk_particles_gpu, "Perform the walk particles gpu sim",
+          py::arg("initial_particles"),
+          py::arg("boundary_particles"),
+          py::arg("number_of_timesteps"),
+          py::arg("bound_range"),
+          py::arg("max_tries") = 6,
+          py::arg("run_clear_kernel") = true,
+          py::arg("run_build_kernel") = true,
+          py::arg("return_gpu_tree_buffer") = false,
+          py::arg("buffer_size_nodes") = 10000000);
     m.def("haroon_print", &haroon_print, "print aiogujn");
 }
