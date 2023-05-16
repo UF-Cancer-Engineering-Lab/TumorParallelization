@@ -42,12 +42,14 @@ const int BARRIER_CELL = 0;
 const int CANCER_CELL = 1;
 
 // Device Kernels
-__global__ void clear_tree(int* tree_buffer, int* used_buffer_size, unsigned int num_buffer_nodes);
+__global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes);
+__global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, bool async);
 
 // Host Functions
-void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int num_buffer_nodes);
-void h_clear_tree(int* gpu_tree_buffer, int* used_buffer_size, unsigned int num_buffer_nodes, bool async);
-py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool run_clear_kernel, bool run_build_kernel, bool return_gpu_tree_buffer, int buffer_size_nodes);
+void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int tree_buffer_size_nodes);
+void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async);
+void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, bool async);
+py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes);
 
 int haroon_print() {
     std::cout << "Hello ffrom c++" << std::endl;
@@ -61,9 +63,8 @@ PYBIND11_MODULE(cuda_kernels, m) {
           py::arg("number_of_timesteps"),
           py::arg("bound_range"),
           py::arg("max_tries") = 6,
-          py::arg("run_clear_kernel") = true,
-          py::arg("run_build_kernel") = true,
+          py::arg("random_walk") = true,
           py::arg("return_gpu_tree_buffer") = false,
-          py::arg("buffer_size_nodes") = 10000000);
+          py::arg("tree_buffer_size_nodes") = 10000000);
     m.def("haroon_print", &haroon_print, "print aiogujn");
 }

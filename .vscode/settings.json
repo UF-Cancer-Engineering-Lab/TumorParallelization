@@ -12,6 +12,7 @@
     "list": "cpp",
     "valarray": "cpp",
     "vector": "cpp",
-    "xstring": "cpp"
+    "xstring": "cpp",
+    "iostream": "cpp"
   }
 }

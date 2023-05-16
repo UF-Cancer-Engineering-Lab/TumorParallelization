@@ -15,9 +15,9 @@ class TestOctTree(unittest.TestCase):
                 [],
                 1,
                 1000,
-                run_build_kernel=False,
+                random_walk=False,
                 return_gpu_tree_buffer=True,
-                buffer_size_nodes=GPUBufferSizeNodes,
+                tree_buffer_size_nodes=GPUBufferSizeNodes,
             )
             for i in range(GPUBufferSizeNodes):
                 # data at buffer position
