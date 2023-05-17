@@ -28,21 +28,35 @@ class TestOctTree(unittest.TestCase):
                 self.assertEqual(childIndex, -1)
                 self.assertEqual(lock, -1)
 
-    def test_02_noInsertion(self):
+    def test_02_readTree(self):
+        for data_size in range(100):
+            original_data = np.random.randint(
+                0, 10000, size=(data_size, 3), dtype=np.int32
+            )
+            processed_data = cuda_kernels.walk_particles_gpu(
+                original_data,
+                [],
+                1,
+                1000,
+                random_walk=False,
+            )
+            self.assertTrue((original_data == processed_data).all())
+
+    def test_03_noInsertion(self):
         particles = np.empty((0, 3))
         self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_03_oneInsertion(self):
+    def test_04_oneInsertion(self):
         for i in range(10):
             particles = np.array([[1, 1, 1]])
             self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_04_twoInsertion(self):
+    def test_05_twoInsertion(self):
         for i in range(10):
             particles = np.array([[1, 1, 1], [-1, -1, -1]])
             self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_05_eightParticlesDifferentQuadrants(self):
+    def test_06_eightParticlesDifferentQuadrants(self):
         for i in range(10):
             particles = np.array(
                 [
@@ -58,17 +72,17 @@ class TestOctTree(unittest.TestCase):
             )
             self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_06_duplicateInsertion(self):
+    def test_07_duplicateInsertion(self):
         for i in range(10):
             particles = np.array([[1, 1, 1], [1, 1, 1]])
             self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_07_nestingInTree(self):
+    def test_08_nestingInTree(self):
         for i in range(10):
             particles = np.array([[1, 1, 1], [2, 2, 2]])
             self.assertTrue(testAgreementCPU_GPU(particles))
 
-    def test_08_variedNesting(self):
+    def test_09_variedNesting(self):
         for i in range(10):
             particles = np.array([[1000, 1000, 1000], [1, 1, 1], [2, 2, 2]])
             self.assertTrue(testAgreementCPU_GPU(particles))
