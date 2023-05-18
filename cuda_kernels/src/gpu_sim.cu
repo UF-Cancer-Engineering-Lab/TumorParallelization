@@ -19,7 +19,7 @@ void h_clear_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, unsigned int
     dim3 block_dim(32, 1, 1);
     dim3 grid_dim((tree_buffer_size_nodes / block_dim.x) + 1, 1, 1);
 
-    clear_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, nullptr, tree_buffer_size_nodes);
+    clear_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes);
 
     if (!async) {
         cudaDeviceSynchronize();
@@ -28,9 +28,88 @@ void h_clear_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, unsigned int
 __global__ void clear_tree(int *tree_buffer, int *used_tree_buffer_size, unsigned int tree_buffer_size_nodes) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
+    if (tid == 0) {
+        used_tree_buffer_size[0] = NODE_SIZE_INT;
+    }
+
     if (tid < tree_buffer_size_nodes) {
-        tree_buffer[tid * NODE_SIZE_INT + TREE_CHILD_OFFSET] = NO_CHILD_NO_PARTICLE;
+        tree_buffer[tid * NODE_SIZE_INT + TREE_CHILD_OFFSET] = NO_PARTICLE_NO_CHILD;
         tree_buffer[tid * NODE_SIZE_INT + TREE_LOCK_OFFSET] = UNLOCKED;
+    }
+}
+
+void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async) {
+    dim3 block_dim(32, 1, 1);
+    dim3 grid_dim((number_of_particles / block_dim.x) + 1, 1, 1);
+
+    build_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
+
+    if (!async) {
+        cudaDeviceSynchronize();
+    }
+}
+__global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk) {
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (tid < number_of_particles) {
+        // State of particle
+        bool inserted_particle = false;
+        int particle_buffer_pos = tid * PARTICLE_SIZE_INT;
+        int original_particle_position[PARTICLE_SIZE_INT];
+        int walked_particle_position[PARTICLE_SIZE_INT];
+        original_particle_position[PARTICLE_X_OFFSET] = gpu_particles_buffer[particle_buffer_pos + PARTICLE_X_OFFSET];
+        original_particle_position[PARTICLE_Y_OFFSET] = gpu_particles_buffer[particle_buffer_pos + PARTICLE_Y_OFFSET];
+        original_particle_position[PARTICLE_Z_OFFSET] = gpu_particles_buffer[particle_buffer_pos + PARTICLE_Z_OFFSET];
+        int tries_left = max_tries;
+
+        // TODO: Add random
+        while (!inserted_particle && tries_left > 0) {
+            // Walk the particle (randomize position) (for now write original)
+            walked_particle_position[PARTICLE_X_OFFSET] = original_particle_position[PARTICLE_X_OFFSET];
+            walked_particle_position[PARTICLE_Y_OFFSET] = original_particle_position[PARTICLE_Y_OFFSET];
+            walked_particle_position[PARTICLE_Z_OFFSET] = original_particle_position[PARTICLE_Z_OFFSET];
+
+            // Insert particle into tree
+            {
+                // Insertion State
+                int curr_tree_pos = 0;
+                float curr_bound_range = bound_range;
+                float bound_start[3];
+                bound_start[0] = bound_start[1] = bound_start[2] = -0.5f * bound_range;
+                bool completed_insert_attempt = false;
+
+                while (!completed_insert_attempt) {
+                    // Travel deeper if non-leaf
+                    if (gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] >= 0) {
+                        completed_insert_attempt = true;
+                    }
+                    // If leaf get lock and insert here
+                    if (UNLOCKED == atomicCAS(&gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET], UNLOCKED, tid)) {
+                        int curr_node_child = gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET];
+                        if (NO_PARTICLE_NO_CHILD == curr_node_child) {
+                            gpu_tree_buffer[curr_tree_pos + TREE_ID_OFFSET] = tid;
+                            gpu_tree_buffer[curr_tree_pos + TREE_X_OFFSET] = walked_particle_position[PARTICLE_X_OFFSET];
+                            gpu_tree_buffer[curr_tree_pos + TREE_Y_OFFSET] = walked_particle_position[PARTICLE_Y_OFFSET];
+                            gpu_tree_buffer[curr_tree_pos + TREE_Z_OFFSET] = walked_particle_position[PARTICLE_Z_OFFSET];
+                            gpu_tree_buffer[curr_tree_pos + TREE_TYPE_OFFSET] = particle_type;
+                            gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] = PARTICLE_NO_CHILD;
+                            inserted_particle = true;
+                        }
+
+                        // Need to move existing particle and new particle into subtree
+                        else {
+                        }
+
+                        __threadfence();
+                        gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET] = UNLOCKED;
+                        completed_insert_attempt = true;
+                    }
+                }
+            }
+
+            // Reset particle for the next iteration
+            tries_left--;
+        }
     }
 }
 
@@ -65,6 +144,10 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
     size_t gpu_tree_buffer_size = tree_buffer_size_nodes * NODE_SIZE_BYTES;
     cudaMalloc(&gpu_tree_buffer, gpu_tree_buffer_size);
 
+    // Create single size array to track used space in tree buffer
+    int *used_tree_buffer_size = nullptr;
+    cudaMalloc(&used_tree_buffer_size, sizeof(int));
+
     // Send particle data to the gpu
     size_t particle_count = initial_particles.shape(0);
     int *initial_particles_ptr = static_cast<int *>(initial_particles.request().ptr);
@@ -80,12 +163,8 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
 
     // Run Kernels for each timestep
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
-        h_clear_tree(gpu_tree_buffer, nullptr, tree_buffer_size_nodes, true);
-
-        if (random_walk) {
-            // Build tree
-        }
-
+        h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, true);
+        h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, true);
         h_read_tree(gpu_tree_buffer, gpu_particles_buffer, tree_buffer_size_nodes, true);
 
         cudaDeviceSynchronize();

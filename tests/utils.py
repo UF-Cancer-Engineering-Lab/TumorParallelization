@@ -60,7 +60,7 @@ def isValidOctTree(gpuBuffer, currIndex, boundPos, boundRange):
 
     # Validate lock state
     if lock >= 0:
-        print("Found unlocked node! Check concurrency!")
+        print("Found locked node! Check concurrency!")
         return False
 
     # If there is no particle here, return true

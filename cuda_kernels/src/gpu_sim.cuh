@@ -35,7 +35,7 @@ const int TREE_LOCK_OFFSET = 5;
 const int TREE_TYPE_OFFSET = 6;
 const int TREE_RESERVED_OFFSET = 7;
 
-const int NO_CHILD_NO_PARTICLE = -1;
+const int NO_PARTICLE_NO_CHILD = -1;
 const int PARTICLE_NO_CHILD = -2;
 const int UNLOCKED = -1;
 const int BARRIER_CELL = 0;
@@ -48,11 +48,13 @@ const int PARTICLE_Z_OFFSET = 2;
 
 // Device Kernels
 __global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes);
+__global__ void build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk);
 __global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes);
 
 // Host Functions
 void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int tree_buffer_size_nodes);
 void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async);
+void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async);
 void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, bool async);
 py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes);
 
