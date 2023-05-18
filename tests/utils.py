@@ -16,6 +16,7 @@ def testAgreementCPU_GPU(inputParticles):
     )
     root = buildTreeCPU(inputParticles, boundRange)
     gpuBuffer = buildTreeGPU(inputParticles, boundRange)
+    gpuBuffer.shape[0] <= 32 * 8 and printGPUBuffer(gpuBuffer)
     return isValidOctTree(
         gpuBuffer, 0, [-boundRange / 2, -boundRange / 2, -boundRange / 2], boundRange
     ) and testAgreementCPU_GPU_Helper(gpuBuffer, root, 0)
@@ -29,6 +30,7 @@ def buildTreeGPU(inputParticles, boundRange):
         boundRange,
         random_walk=False,
         return_gpu_tree_buffer=True,
+        # tree_buffer_size_nodes=32,
     )
 
 
@@ -225,3 +227,11 @@ def getBoundStartFromOffset(offset, boundPos, boundRange):
         newBound[1] = boundPos[1]
         newBound[2] = boundPos[2]
     return newBound
+
+
+def printGPUBuffer(buffer):
+    print()
+    for i in range(len(buffer) // 8):
+        for j in range(8):
+            print(buffer[i * 8 + j], end=" ")
+        print()

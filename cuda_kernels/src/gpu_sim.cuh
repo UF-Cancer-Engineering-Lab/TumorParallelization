@@ -16,6 +16,7 @@ namespace py = pybind11;
 //           -2 if there is a particle but no children
 //           #  pointing to child index in buffer if a non-leaf node of tree
 //       int6 is the lock state of the node
+//           lock will be -2 if non-leaf (better performance and less mem check than if lock only did locking)
 //           lock will be -1 if unlocked
 //           lock == particleID if the node is locked
 //       int7 is for cell type
@@ -37,6 +38,7 @@ const int TREE_RESERVED_OFFSET = 7;
 
 const int NO_PARTICLE_NO_CHILD = -1;
 const int PARTICLE_NO_CHILD = -2;
+const int NON_LEAF = -2;
 const int UNLOCKED = -1;
 const int BARRIER_CELL = 0;
 const int CANCER_CELL = 1;
@@ -47,21 +49,18 @@ const int PARTICLE_Y_OFFSET = 1;
 const int PARTICLE_Z_OFFSET = 2;
 
 // Device Kernels
+__device__ int get_next_octant(int particle_position[3], float bound_start[3], float bound_range);
+__device__ void update_bound_start(float bound_start[3], float bound_range, int offset);
 __global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes);
 __global__ void build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk);
-__global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes);
+__global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int tree_buffer_size_nodes);
 
 // Host Functions
 void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int tree_buffer_size_nodes);
 void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async);
 void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async);
-void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, bool async);
+void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int* used_tree_buffer_size, int tree_buffer_size_nodes, bool async);
 py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes);
-
-int haroon_print() {
-    std::cout << "Hello ffrom c++" << std::endl;
-    return 0;
-}
 
 PYBIND11_MODULE(cuda_kernels, m) {
     m.def("walk_particles_gpu", &walk_particles_gpu, "Perform the walk particles gpu sim",
@@ -73,5 +72,4 @@ PYBIND11_MODULE(cuda_kernels, m) {
           py::arg("random_walk") = true,
           py::arg("return_gpu_tree_buffer") = false,
           py::arg("tree_buffer_size_nodes") = 10000000);
-    m.def("haroon_print", &haroon_print, "print aiogujn");
 }

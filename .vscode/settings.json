@@ -13,6 +13,7 @@
     "valarray": "cpp",
     "vector": "cpp",
     "xstring": "cpp",
-    "iostream": "cpp"
+    "iostream": "cpp",
+    "complex": "cpp"
   }
 }
