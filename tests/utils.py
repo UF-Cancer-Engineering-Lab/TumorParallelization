@@ -7,6 +7,8 @@ parent_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_folder)
 from octTreeCPU import TreeNode, buildTreeCPU
 
+NODE_SIZE = 8
+
 
 def testAgreementCPU_GPU(inputParticles):
     boundRange = (
@@ -51,7 +53,6 @@ def isValidOctTree(gpuBuffer, currIndex, boundPos, boundRange):
     #           0 is immovable cell
     #           1 is movable cancer cell
     #       int8 is reserved for now
-    NODE_SIZE = 8
 
     # Grab data at buffer position
     particleID = gpuBuffer[currIndex]

@@ -4,8 +4,7 @@ import cuda_kernels
 
 from utils import testAgreementCPU_GPU
 from utils import printGPUBuffer
-
-NODE_SIZE = 8
+from utils import NODE_SIZE
 
 
 class TestOctTree(unittest.TestCase):
