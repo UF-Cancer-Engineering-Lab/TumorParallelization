@@ -1,4 +1,5 @@
 import json
+
 config_path = "./config/config.json"
 config_data = json.load(open(config_path))
 
@@ -13,6 +14,7 @@ porosityFraction = config_data["porosityFraction"]  # porosity fraction of parti
 # each "particle", or "cell" has some void space in it
 sphereRadius = config_data["sphereRadius"]
 shouldSaveResults = config_data["shouldSaveResults"]
+shouldCalculateMLD = config_data["shouldCalculateMLD"]
 show3DVisualization = config_data["show3DVisualization"]
 outPath = config_data["outPath"]
 scene_file_name = config_data["scene_file_name"]

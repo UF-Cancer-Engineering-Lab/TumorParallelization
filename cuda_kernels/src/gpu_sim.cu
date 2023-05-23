@@ -16,7 +16,7 @@ void print_gpu_tree_buffer(int *gpu_tree_buffer, unsigned int tree_buffer_size_n
 }
 
 void h_clear_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async) {
-    dim3 block_dim(32, 1, 1);
+    dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((tree_buffer_size_nodes / block_dim.x) + 1, 1, 1);
 
     clear_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes);
@@ -39,7 +39,7 @@ __global__ void clear_tree(int *tree_buffer, int *used_tree_buffer_size, unsigne
 }
 
 void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async) {
-    dim3 block_dim(32, 1, 1);
+    dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((number_of_particles / block_dim.x) + 1, 1, 1);
 
     build_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
@@ -322,7 +322,7 @@ void h_read_tree(int *gpu_tree_buffer, int *gpu_particles_buffer, int *used_tree
     cudaMemcpy(&h_used_tree_buffer_size, used_tree_buffer_size, sizeof(int), cudaMemcpyDeviceToHost);
     int used_buffer_size_nodes = h_used_tree_buffer_size / NODE_SIZE_INT;
 
-    dim3 block_dim(32, 1, 1);
+    dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((used_buffer_size_nodes / block_dim.x) + 1, 1, 1);
 
     read_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, gpu_particles_buffer, tree_buffer_size_nodes);
@@ -371,7 +371,7 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
 
     // Generate random state to sample from
     curandState *rnd_state;
-    dim3 rnd_block_dim(32, 1, 1);
+    dim3 rnd_block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 rnd_grid_dim((particle_count / rnd_block_dim.x) + 1, 1, 1);
 
     cudaMalloc(&rnd_state, rnd_block_dim.x * rnd_grid_dim.x * sizeof(curandState));

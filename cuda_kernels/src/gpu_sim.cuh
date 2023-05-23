@@ -52,6 +52,8 @@ const int PARTICLE_X_OFFSET = 0;
 const int PARTICLE_Y_OFFSET = 1;
 const int PARTICLE_Z_OFFSET = 2;
 
+const int THREADS_PER_BLOCK = 1024;
+
 // Device Kernels
 __device__ void randomize_particle_position(int walked_particle_position[3], int original_particle_position[3], curandState* local_rnd_state, bool should_random_walk);
 __device__ int get_next_octant(int particle_position[3], float bound_start[3], float bound_range);

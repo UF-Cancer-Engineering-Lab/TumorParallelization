@@ -8,16 +8,17 @@ import time
 # ----------------------------------------- Program Start --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 scene = load_scene(scene_file_name)
 initialSphere = getInitialSphereNumpy()
+print("Made initial sphere, starting simulation...")
 startTime = time.perf_counter()
 # particles = randomWalkCPU(initialSphere)
 particles = walkParticlesGPU(initialSphere, scene)
 print("Time to complete walk (s): " + str(time.perf_counter() - startTime))
-MLD = calculateLinearDistanceNumpy(particles)
+MLD = calculateLinearDistanceNumpy(particles) if shouldCalculateMLD else []
 
 print("Time to complete simulation (s): " + str(time.perf_counter() - startTime))
 show3DVisualization and plotCellData(particles)
 
 print("Calculating mean linear displacement...")
-plotMLD(MLD)
+shouldCalculateMLD and plotMLD(MLD)
 
 shouldSaveResults and saveResults(MLD, particles)
