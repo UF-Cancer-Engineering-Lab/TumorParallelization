@@ -3,6 +3,7 @@ import sys
 import shutil
 import glob
 import subprocess
+import re
 
 # Get the path of the current virtual environment
 venv_dir = sys.prefix
@@ -12,8 +13,10 @@ site_packages_dir = ""
 if sys.platform.startswith("win"):
     site_packages_dir = os.path.join("./.venv", "Lib", "site-packages")
 else:
+    regex_filter = r'^(\d+\.\d+)\.'
+    version = re.search(regex_filter, sys.version).group(1)
     site_packages_dir = os.path.join(
-        "./.venv", "lib", "python{}".format(sys.version[:4]), "site-packages"
+        "./.venv", "lib", "python{}".format(version), "site-packages"
     )
 
 # Find build to copy
