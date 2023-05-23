@@ -1,12 +1,12 @@
 {
-    "n": 10,
+    "n": 1000,
     "maxTries": 6,
     "particlesNumber": 1,
     "porosityFraction": 0.05,
     "sphereRadius": 20,
     "shouldSaveResults": false,
-    "shouldCalculateMLD": false,
-    "show3DVisualization": true,
+    "showMLDVisualization": true,
+    "show3DVisualization": false,
     "outPath": "./output2/",
     "scene_file_name": "test_scene",
     "max_vram_allocation_gb": 0.1

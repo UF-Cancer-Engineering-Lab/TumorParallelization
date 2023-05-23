@@ -17,6 +17,7 @@
     "complex": "cpp",
     "iosfwd": "cpp",
     "xlocbuf": "cpp",
-    "random": "cpp"
+    "random": "cpp",
+    "tuple": "cpp"
   }
 }

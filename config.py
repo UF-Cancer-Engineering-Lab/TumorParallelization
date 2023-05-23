@@ -14,7 +14,7 @@ porosityFraction = config_data["porosityFraction"]  # porosity fraction of parti
 # each "particle", or "cell" has some void space in it
 sphereRadius = config_data["sphereRadius"]
 shouldSaveResults = config_data["shouldSaveResults"]
-shouldCalculateMLD = config_data["shouldCalculateMLD"]
+showMLDVisualization = config_data["showMLDVisualization"]
 show3DVisualization = config_data["show3DVisualization"]
 outPath = config_data["outPath"]
 scene_file_name = config_data["scene_file_name"]
