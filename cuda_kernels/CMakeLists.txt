@@ -21,11 +21,10 @@ file(GLOB_RECURSE SRC
 PYBIND11_ADD_MODULE(cuda_kernels ${SRC})
 
 # Configure
-set_target_properties(cuda_kernels PROPERTIES CUDA_ARCHITECTURES "72")
+set_target_properties(cuda_kernels PROPERTIES CUDA_ARCHITECTURES native)
 
 # Link
 target_link_libraries(cuda_kernels PRIVATE pybind11::module)
-target_link_libraries(cuda_kernels ${CUDA_curand_LIBRARY})
 
 # Post Build
 add_custom_command(TARGET cuda_kernels POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:cuda_kernels> ${CMAKE_SOURCE_DIR})
