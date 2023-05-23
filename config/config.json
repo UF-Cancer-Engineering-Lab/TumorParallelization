@@ -1,0 +1,12 @@
+{
+    "n": 1000,
+    "maxTries": 6,
+    "particlesNumber": 1,
+    "porosityFraction": 0.05,
+    "sphereRadius": 25,
+    "shouldSaveResults": false,
+    "show3DVisualization": false,
+    "outPath": "./output2/",
+    "scene_file_name": "test_scene",
+    "max_vram_allocation_gb": 1
+}
