@@ -59,7 +59,7 @@ __device__ void randomize_particle_position(int walked_particle_position[3], int
 __device__ int get_next_octant(int particle_position[3], float bound_start[3], float bound_range);
 __device__ void update_bound_start(float bound_start[3], float bound_range, int offset);
 __global__ void rnd_setup_kernel(int seed, curandState* state);
-__global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes);
+__global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, unsigned int default_used_size);
 __global__ void build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, curandState* rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk);
 __global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int tree_buffer_size_nodes);
 __global__ void init_mld(float* mld_buffer, int number_of_timesteps);
@@ -68,7 +68,7 @@ __global__ void divide_mld(float* mld_buffer, int number_of_timesteps, int parti
 
 // Host Functions
 void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int tree_buffer_size_nodes);
-void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async);
+void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, unsigned int default_used_size, bool async);
 void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, curandState* rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async);
 void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int* used_tree_buffer_size, int tree_buffer_size_nodes, bool async);
 void h_sum_mld(float* mld_buffer, int* gpu_particles_buffer, int* gpu_init_particles_buffer, int timestep, int particle_count, bool async);
