@@ -1,7 +1,11 @@
 #pragma once
+#include <cuda.h>
+#include <curand.h>
+#include <curand_kernel.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <iostream>
 namespace py = pybind11;
@@ -49,16 +53,18 @@ const int PARTICLE_Y_OFFSET = 1;
 const int PARTICLE_Z_OFFSET = 2;
 
 // Device Kernels
+__device__ void randomize_particle_position(int walked_particle_position[3], int original_particle_position[3], curandState* local_rnd_state, bool should_random_walk);
 __device__ int get_next_octant(int particle_position[3], float bound_start[3], float bound_range);
 __device__ void update_bound_start(float bound_start[3], float bound_range, int offset);
+__global__ void rnd_setup_kernel(int seed, curandState* state);
 __global__ void clear_tree(int* tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes);
-__global__ void build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk);
+__global__ void build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, curandState* rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk);
 __global__ void read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int tree_buffer_size_nodes);
 
 // Host Functions
 void print_gpu_tree_buffer(int* gpu_tree_buffer, unsigned int tree_buffer_size_nodes);
 void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int tree_buffer_size_nodes, bool async);
-void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async);
+void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, curandState* rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async);
 void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int* used_tree_buffer_size, int tree_buffer_size_nodes, bool async);
 py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes);
 

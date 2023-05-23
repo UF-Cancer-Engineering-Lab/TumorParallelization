@@ -14,6 +14,9 @@
     "vector": "cpp",
     "xstring": "cpp",
     "iostream": "cpp",
-    "complex": "cpp"
+    "complex": "cpp",
+    "iosfwd": "cpp",
+    "xlocbuf": "cpp",
+    "random": "cpp"
   }
 }

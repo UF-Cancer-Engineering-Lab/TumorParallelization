@@ -38,17 +38,17 @@ __global__ void clear_tree(int *tree_buffer, int *used_tree_buffer_size, unsigne
     }
 }
 
-void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async) {
+void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async) {
     dim3 block_dim(32, 1, 1);
     dim3 grid_dim((number_of_particles / block_dim.x) + 1, 1, 1);
 
-    build_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
+    build_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
 
     if (!async) {
         cudaDeviceSynchronize();
     }
 }
-__global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk) {
+__global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (tid < number_of_particles) {
@@ -61,13 +61,12 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int
         original_particle_position[PARTICLE_Y_OFFSET] = gpu_particles_buffer[particle_buffer_pos + PARTICLE_Y_OFFSET];
         original_particle_position[PARTICLE_Z_OFFSET] = gpu_particles_buffer[particle_buffer_pos + PARTICLE_Z_OFFSET];
         int tries_left = max_tries;
+        curandState local_rnd_state = rnd_state[tid];
 
         // TODO: Add random
         while (!inserted_particle && tries_left > 0) {
             // Walk the particle (randomize position) (for now write original)
-            walked_particle_position[PARTICLE_X_OFFSET] = original_particle_position[PARTICLE_X_OFFSET];
-            walked_particle_position[PARTICLE_Y_OFFSET] = original_particle_position[PARTICLE_Y_OFFSET];
-            walked_particle_position[PARTICLE_Z_OFFSET] = original_particle_position[PARTICLE_Z_OFFSET];
+            randomize_particle_position(walked_particle_position, original_particle_position, &local_rnd_state, random_walk);
 
             // Insert particle into tree
             {
@@ -211,6 +210,8 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int
             // Reset particle for the next iteration
             tries_left--;
         }
+
+        rnd_state[tid] = local_rnd_state;
     }
 }
 __device__ int get_next_octant(int particle_position[3], float bound_start[3], float bound_range) {
@@ -290,6 +291,31 @@ __device__ void update_bound_start(float bound_start[3], float bound_range, int 
         bound_start[2] = bound_start[2];
     }
 }
+__device__ void randomize_particle_position(int walked_particle_position[3], int original_particle_position[3], curandState *local_rnd_state, bool should_random_walk) {
+    walked_particle_position[PARTICLE_X_OFFSET] = original_particle_position[PARTICLE_X_OFFSET];
+    walked_particle_position[PARTICLE_Y_OFFSET] = original_particle_position[PARTICLE_Y_OFFSET];
+    walked_particle_position[PARTICLE_Z_OFFSET] = original_particle_position[PARTICLE_Z_OFFSET];
+    if (should_random_walk) {
+        int rnd_number = (int)ceilf(6.0f * curand_uniform(local_rnd_state));
+        if (rnd_number == 1) {
+            walked_particle_position[PARTICLE_X_OFFSET] += 1;
+        } else if (rnd_number == 2) {
+            walked_particle_position[PARTICLE_X_OFFSET] -= 1;
+        } else if (rnd_number == 3) {
+            walked_particle_position[PARTICLE_Y_OFFSET] += 1;
+        } else if (rnd_number == 4) {
+            walked_particle_position[PARTICLE_Y_OFFSET] -= 1;
+        } else if (rnd_number == 5) {
+            walked_particle_position[PARTICLE_Z_OFFSET] += 1;
+        } else if (rnd_number == 6) {
+            walked_particle_position[PARTICLE_Z_OFFSET] -= 1;
+        }
+    }
+}
+__global__ void rnd_setup_kernel(int seed, curandState *rnd_state) {
+    int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    curand_init(seed, tid, 0, &rnd_state[tid]);
+}
 
 void h_read_tree(int *gpu_tree_buffer, int *gpu_particles_buffer, int *used_tree_buffer_size, int tree_buffer_size_nodes, bool async) {
     int h_used_tree_buffer_size = 0;
@@ -343,10 +369,20 @@ py::array_t<int> walk_particles_gpu(py::array_t<int> initial_particles, py::arra
     py::array_t<int> result_array(shape);
     int *result_array_ptr = static_cast<int *>(result_array.request().ptr);
 
+    // Generate random state to sample from
+    curandState *rnd_state;
+    dim3 rnd_block_dim(32, 1, 1);
+    dim3 rnd_grid_dim((particle_count / rnd_block_dim.x) + 1, 1, 1);
+
+    cudaMalloc(&rnd_state, rnd_block_dim.x * rnd_grid_dim.x * sizeof(curandState));
+    srand(time(0));
+    int seed = rand();
+    rnd_setup_kernel<<<rnd_grid_dim, rnd_block_dim>>>(seed, rnd_state);
+
     // Run Kernels for each timestep
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
         h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, true);
-        h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, true);
+        h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, true);
         h_read_tree(gpu_tree_buffer, gpu_particles_buffer, used_tree_buffer_size, tree_buffer_size_nodes, true);
 
         cudaDeviceSynchronize();
