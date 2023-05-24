@@ -345,13 +345,13 @@ __global__ void sum_mld(float *mld_buffer, const int *gpu_particles_buffer, cons
 
     __shared__ float shared_mld[1];
 
-    if (threadIdx.x == 0) {
+    bool is_first_thread = threadIdx.x == 0;
+    if (is_first_thread) {
         shared_mld[0] = 0.0f;
     }
     __syncthreads();
 
-    bool is_first_thread = tid < particle_count;
-    if (is_first_thread) {
+    if (tid < particle_count) {
         int buffer_pos = tid * PARTICLE_SIZE_INT;
         float delta_x = gpu_init_particles_buffer[buffer_pos + PARTICLE_X_OFFSET] - gpu_particles_buffer[buffer_pos + PARTICLE_X_OFFSET];
         float delta_y = gpu_init_particles_buffer[buffer_pos + PARTICLE_Y_OFFSET] - gpu_particles_buffer[buffer_pos + PARTICLE_Y_OFFSET];
@@ -363,7 +363,7 @@ __global__ void sum_mld(float *mld_buffer, const int *gpu_particles_buffer, cons
     // Write output to global mem
     __syncthreads();
     if (is_first_thread) {
-        atomicAdd(&mld_buffer[timestep], shared_mld[0] / blockDim.x);
+        atomicAdd(&mld_buffer[timestep], shared_mld[0]);
     }
 }
 __global__ void divide_mld(float *mld_buffer, int number_of_timesteps, int particle_count) {
