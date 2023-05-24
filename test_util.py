@@ -2,9 +2,6 @@ import numpy as np
 import sys
 import os
 import cuda_kernels
-
-parent_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_folder)
 from octTreeCPU import TreeNode, buildTreeCPU
 
 NODE_SIZE = 8
@@ -25,7 +22,7 @@ def testAgreementCPU_GPU(inputParticles):
 
 
 def buildTreeGPU(inputParticles, boundRange):
-    return cuda_kernels.walk_particles_gpu(
+    MLD, gpuBuffer = cuda_kernels.walk_particles_gpu(
         inputParticles,
         [],
         1,
@@ -34,6 +31,7 @@ def buildTreeGPU(inputParticles, boundRange):
         return_gpu_tree_buffer=True,
         # tree_buffer_size_nodes=32,
     )
+    return gpuBuffer
 
 
 def isValidOctTree(gpuBuffer, currIndex, boundPos, boundRange):

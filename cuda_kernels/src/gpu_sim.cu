@@ -497,7 +497,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
         py::array_t<int> gpu_tree_result(shape);
         int *gpu_tree_result_ptr = static_cast<int *>(gpu_tree_result.request().ptr);
         cudaMemcpy(gpu_tree_result_ptr, gpu_tree_buffer, gpu_tree_buffer_size, cudaMemcpyDeviceToHost);
-        return gpu_tree_result;
+        return py::make_tuple(mld_result_array, gpu_tree_result);
     }
 
     // Cleanup

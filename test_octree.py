@@ -2,15 +2,15 @@ import unittest
 import numpy as np
 import cuda_kernels
 
-from utils import testAgreementCPU_GPU
-from utils import printGPUBuffer
-from utils import NODE_SIZE
+from test_util import testAgreementCPU_GPU
+from test_util import printGPUBuffer
+from test_util import NODE_SIZE
 
 
 class TestOctTree(unittest.TestCase):
     def test_01_clearBuffer(self):
         for GPUBufferSizeNodes in range(100):
-            bufferData = cuda_kernels.walk_particles_gpu(
+            MLD, bufferData = cuda_kernels.walk_particles_gpu(
                 [],
                 [],
                 1,
@@ -33,7 +33,7 @@ class TestOctTree(unittest.TestCase):
             original_data = np.random.randint(
                 0, data_size, size=(data_size, 3), dtype=np.int32
             )
-            processed_data = cuda_kernels.walk_particles_gpu(
+            MLD, processed_data = cuda_kernels.walk_particles_gpu(
                 original_data,
                 [],
                 1,
@@ -93,7 +93,3 @@ class TestOctTree(unittest.TestCase):
         # for i in range(100):
         particles = np.array([[1000, 1000, 1000], [1, 1, 1], [2, 2, 2]])
         self.assertTrue(testAgreementCPU_GPU(particles))
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
