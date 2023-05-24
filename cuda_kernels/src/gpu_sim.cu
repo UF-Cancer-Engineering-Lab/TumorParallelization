@@ -17,15 +17,11 @@ void print_gpu_tree_buffer(int *gpu_tree_buffer, unsigned int tree_buffer_size_n
     delete host_ptr;
 }
 
-void h_clear_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, unsigned int tree_buffer_size_nodes, unsigned int default_used_size, bool async) {
+void h_clear_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, unsigned int tree_buffer_size_nodes, unsigned int default_used_size, cudaStream_t stream) {
     dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((tree_buffer_size_nodes / block_dim.x) + 1, 1, 1);
 
-    clear_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, default_used_size);
-
-    if (!async) {
-        cudaDeviceSynchronize();
-    }
+    clear_tree<<<grid_dim, block_dim, 0, stream>>>(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, default_used_size);
 }
 __global__ void clear_tree(int *tree_buffer, int *used_tree_buffer_size, unsigned int tree_buffer_size_nodes, unsigned int default_used_size) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -40,17 +36,13 @@ __global__ void clear_tree(int *tree_buffer, int *used_tree_buffer_size, unsigne
     }
 }
 
-void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, bool async) {
+void h_build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, cudaStream_t stream) {
     dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((number_of_particles / block_dim.x) + 1, 1, 1);
 
-    build_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
-
-    if (!async) {
-        cudaDeviceSynchronize();
-    }
+    build_tree<<<grid_dim, block_dim, 0, stream>>>(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, number_of_particles, particle_type, bound_range, max_tries, random_walk);
 }
-__global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk) {
+__global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, const int *gpu_particles_buffer, curandState *rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (tid < number_of_particles) {
@@ -318,21 +310,15 @@ __global__ void rnd_setup_kernel(int seed, curandState *rnd_state) {
     curand_init(seed, tid, 0, &rnd_state[tid]);
 }
 
-void h_read_tree(int *gpu_tree_buffer, int *gpu_particles_buffer, int *used_tree_buffer_size, int tree_buffer_size_nodes, bool async) {
-    int h_used_tree_buffer_size = 0;
-    cudaMemcpy(&h_used_tree_buffer_size, used_tree_buffer_size, sizeof(int), cudaMemcpyDeviceToHost);
-    int used_buffer_size_nodes = h_used_tree_buffer_size / NODE_SIZE_INT;
+void h_read_tree(int *gpu_tree_buffer, int *gpu_particles_buffer, int used_tree_buffer_size, int tree_buffer_size_nodes, cudaStream_t stream) {
+    int used_buffer_size_nodes = used_tree_buffer_size / NODE_SIZE_INT;
 
     dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((used_buffer_size_nodes / block_dim.x) + 1, 1, 1);
 
-    read_tree<<<grid_dim, block_dim>>>(gpu_tree_buffer, gpu_particles_buffer, tree_buffer_size_nodes);
-
-    if (!async) {
-        cudaDeviceSynchronize();
-    }
+    read_tree<<<grid_dim, block_dim, 0, stream>>>(gpu_tree_buffer, gpu_particles_buffer, tree_buffer_size_nodes);
 }
-__global__ void read_tree(int *gpu_tree_buffer, int *gpu_particles_buffer, int tree_buffer_size_nodes) {
+__global__ void read_tree(const int *gpu_tree_buffer, int *gpu_particles_buffer, int tree_buffer_size_nodes) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     int tree_buffer_pos = tid * NODE_SIZE_INT;
 
@@ -354,7 +340,7 @@ __global__ void init_mld(float *mld_buffer, int number_of_timesteps) {
         mld_buffer[tid] = 0.0f;
     }
 }
-__global__ void sum_mld(float *mld_buffer, int *gpu_particles_buffer, int *gpu_init_particles_buffer, int timestep, int particle_count) {
+__global__ void sum_mld(float *mld_buffer, const int *gpu_particles_buffer, const int *gpu_init_particles_buffer, int timestep, int particle_count) {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
     __shared__ float shared_mld[1];
@@ -388,15 +374,11 @@ __global__ void divide_mld(float *mld_buffer, int number_of_timesteps, int parti
     }
 }
 
-void h_sum_mld(float *mld_buffer, int *gpu_particles_buffer, int *gpu_init_particles_buffer, int timestep, int particle_count, bool async) {
+void h_sum_mld(float *mld_buffer, int *gpu_particles_buffer, int *gpu_init_particles_buffer, int timestep, int particle_count, cudaStream_t stream) {
     dim3 block_dim(THREADS_PER_BLOCK, 1, 1);
     dim3 grid_dim((particle_count / block_dim.x) + 1, 1, 1);
 
-    sum_mld<<<grid_dim, block_dim>>>(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count);
-
-    if (!async) {
-        cudaDeviceSynchronize();
-    }
+    sum_mld<<<grid_dim, block_dim, 0, stream>>>(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count);
 }
 
 py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes) {
@@ -455,8 +437,8 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     cudaMalloc(&gpu_boundary_particles_buffer, boundary_particle_buffer_size);
     cudaMemcpy(gpu_boundary_particles_buffer, boundary_particles_ptr, boundary_particle_buffer_size, cudaMemcpyHostToDevice);
 
-    h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, NODE_SIZE_INT, true);
-    h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_boundary_particles_buffer, rnd_state, tree_buffer_size_nodes, boundary_particle_count, BARRIER_CELL, bound_range, max_tries, false, true);
+    h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, NODE_SIZE_INT);
+    h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_boundary_particles_buffer, rnd_state, tree_buffer_size_nodes, boundary_particle_count, BARRIER_CELL, bound_range, max_tries, false);
 
     // Copy the static data to its own buffer
     int *gpu_static_tree_buffer = nullptr;
@@ -466,23 +448,52 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     cudaMalloc(&gpu_static_tree_buffer, gpu_tree_buffer_size);
     cudaMemcpy(gpu_static_tree_buffer, gpu_tree_buffer, gpu_tree_buffer_size, cudaMemcpyDeviceToDevice);
     cudaFree(gpu_boundary_particles_buffer);
-    int static_tree_buffer_size_ints = static_tree_buffer_size / sizeof(int);
+
+    // Pinned memory for higher bandwidth/lower latency
+    int *pinned_used_buffer_size = nullptr;
+    int *pinned_static_tree_buffer_size_ints = nullptr;
+    cudaError_t status = cudaHostAlloc(&pinned_used_buffer_size, sizeof(int), cudaHostAllocDefault);
+    if (status != cudaSuccess)
+        printf("Error allocating pinned host memory\n");
+
+    status = cudaHostAlloc(&pinned_static_tree_buffer_size_ints, sizeof(int), cudaHostAllocDefault);
+    if (status != cudaSuccess)
+        printf("Error allocating pinned host memory\n");
+
+    pinned_used_buffer_size[0] = static_tree_buffer_size;
+    pinned_static_tree_buffer_size_ints[0] = static_tree_buffer_size / sizeof(int);
+
+    // Streams to overlap data transfers with kernel executions
+    cudaStream_t mem_stream;
+    cudaStreamCreate(&mem_stream);
+    cudaStream_t exec_stream;
+    cudaStreamCreate(&exec_stream);
+
+    cudaDeviceSynchronize();
 
     // Run Kernels for each timestep
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
-        h_sum_mld(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count, true);
-        // h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, static_tree_buffer_size_ints, true);
-        cudaMemcpy(gpu_tree_buffer, gpu_static_tree_buffer, gpu_tree_buffer_size, cudaMemcpyDeviceToDevice);
-        cudaMemcpy(used_tree_buffer_size, &static_tree_buffer_size_ints, sizeof(int), cudaMemcpyHostToDevice);
-        h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, true);
-        h_read_tree(gpu_tree_buffer, gpu_particles_buffer, used_tree_buffer_size, tree_buffer_size_nodes, true);
-
-        cudaDeviceSynchronize();
+        // h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, pinned_static_tree_buffer_size_ints, true);
+        cudaMemcpyAsync(used_tree_buffer_size, pinned_static_tree_buffer_size_ints, sizeof(int), cudaMemcpyHostToDevice, mem_stream);
+        cudaMemcpyAsync(gpu_tree_buffer, gpu_static_tree_buffer, pinned_used_buffer_size[0] * sizeof(int), cudaMemcpyDeviceToDevice, mem_stream);
+        h_sum_mld(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count, exec_stream);
+        cudaStreamSynchronize(mem_stream);
+        h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, exec_stream);
+        cudaMemcpyAsync(pinned_used_buffer_size, used_tree_buffer_size, sizeof(int), cudaMemcpyDeviceToHost, exec_stream);
+        h_read_tree(gpu_tree_buffer, gpu_particles_buffer, pinned_used_buffer_size[0], tree_buffer_size_nodes, exec_stream);
 
         // Move data from gpu to host
         int *offset_result_array_ptr = result_array_ptr + (timestep * particle_count * 3);
-        cudaMemcpy(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
+        // cudaMemcpy(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
+        cudaStreamSynchronize(exec_stream);  // Wait for read_tree
+        cudaMemcpyAsync(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost, mem_stream);
+
+        // cudaMemcpy(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
+        // memcpy(offset_result_array_ptr, pinned_frame_result, gpu_particles_buffer_size);  // Bottleneck?!?! Use another cpu thread for this?
     }
+
+    // Make sure all streams are done
+    cudaDeviceSynchronize();
 
     // Finalize mld calculations
     divide_mld<<<mld_grid_dim, mld_block_dim>>>(mld_buffer, number_of_timesteps, particle_count);
@@ -501,12 +512,14 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     }
 
     // Cleanup
+    cudaStreamDestroy(mem_stream);
     cudaFree(gpu_tree_buffer);
     cudaFree(used_tree_buffer_size);
     cudaFree(gpu_particles_buffer);
     cudaFree(mld_buffer);
     cudaFree(rnd_state);
     cudaFree(gpu_static_tree_buffer);
+    cudaFreeHost(pinned_used_buffer_size);
 
     return py::make_tuple(mld_result_array, result_array);
 }

@@ -5,7 +5,7 @@
     "porosityFraction": 0.05,
     "sphereRadius": 50,
     "shouldSaveResults": false,
-    "showMLDVisualization": true,
+    "showMLDVisualization": false,
     "show3DVisualization": false,
     "outPath": "./output2/",
     "scene_file_name": "test_scene",

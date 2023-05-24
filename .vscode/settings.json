@@ -18,6 +18,7 @@
     "iosfwd": "cpp",
     "xlocbuf": "cpp",
     "random": "cpp",
-    "tuple": "cpp"
+    "tuple": "cpp",
+    "system_error": "cpp"
   }
 }

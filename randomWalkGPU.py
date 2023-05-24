@@ -1,5 +1,5 @@
 from scene import Scene
-from tests.utils import NODE_SIZE
+from test_util import NODE_SIZE
 import cuda_kernels
 from config import *
 import numpy as np
