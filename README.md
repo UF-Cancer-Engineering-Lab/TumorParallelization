@@ -43,5 +43,5 @@ Run tests.py `python tests.py`
 - Go to cuda_kernels folder
 - Go to src
 - Make changes as desired
-- Run `make_executable.bat` or `make_executable.sh`
+- Run `compile_cuda_kernels.bat` or `compile_cuda_kernels.sh`
 - Run program.py
