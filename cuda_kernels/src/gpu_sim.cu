@@ -1,3 +1,4 @@
+#include <thread>
 #include <vector>
 
 #include "gpu_sim.cuh"
@@ -452,11 +453,16 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     // Pinned memory for higher bandwidth/lower latency
     int *pinned_used_buffer_size = nullptr;
     int *pinned_static_tree_buffer_size_ints = nullptr;
+    int *pinned_frame_result = nullptr;
     cudaError_t status = cudaHostAlloc(&pinned_used_buffer_size, sizeof(int), cudaHostAllocDefault);
     if (status != cudaSuccess)
         printf("Error allocating pinned host memory\n");
 
     status = cudaHostAlloc(&pinned_static_tree_buffer_size_ints, sizeof(int), cudaHostAllocDefault);
+    if (status != cudaSuccess)
+        printf("Error allocating pinned host memory\n");
+
+    status = cudaHostAlloc(&pinned_frame_result, gpu_particles_buffer_size, cudaHostAllocDefault);
     if (status != cudaSuccess)
         printf("Error allocating pinned host memory\n");
 
@@ -471,29 +477,48 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
 
     cudaDeviceSynchronize();
 
+    // Flag and thread for multithreaded memcpy of pinned to paged memory
+    int *offset_result_array_ptr = nullptr;
+    std::thread copy_pinned_to_paged_thread;
+    auto copy_pinned_to_paged = [&offset_result_array_ptr, &pinned_frame_result, &gpu_particles_buffer_size]() {
+        memcpy(offset_result_array_ptr, pinned_frame_result, gpu_particles_buffer_size);
+    };
+
     // Run Kernels for each timestep
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
-        // h_clear_tree(gpu_tree_buffer, used_tree_buffer_size, tree_buffer_size_nodes, pinned_static_tree_buffer_size_ints, true);
+        // Setup static tree
         cudaMemcpyAsync(used_tree_buffer_size, pinned_static_tree_buffer_size_ints, sizeof(int), cudaMemcpyHostToDevice, mem_stream);
         cudaMemcpyAsync(gpu_tree_buffer, gpu_static_tree_buffer, pinned_used_buffer_size[0] * sizeof(int), cudaMemcpyDeviceToDevice, mem_stream);
+
+        // Perform MLD while data is transferred
         h_sum_mld(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count, exec_stream);
+
+        // Wait for static data to be loaded before performing simulation
         cudaStreamSynchronize(mem_stream);
+
+        // Perform walk and read data to particles buffer
         h_build_tree(gpu_tree_buffer, used_tree_buffer_size, gpu_particles_buffer, rnd_state, tree_buffer_size_nodes, particle_count, CANCER_CELL, bound_range, max_tries, random_walk, exec_stream);
         cudaMemcpyAsync(pinned_used_buffer_size, used_tree_buffer_size, sizeof(int), cudaMemcpyDeviceToHost, exec_stream);
         h_read_tree(gpu_tree_buffer, gpu_particles_buffer, pinned_used_buffer_size[0], tree_buffer_size_nodes, exec_stream);
 
         // Move data from gpu to host
-        int *offset_result_array_ptr = result_array_ptr + (timestep * particle_count * 3);
-        // cudaMemcpy(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
-        cudaStreamSynchronize(exec_stream);  // Wait for read_tree
-        cudaMemcpyAsync(offset_result_array_ptr, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost, mem_stream);
+        offset_result_array_ptr = result_array_ptr + (timestep * particle_count * 3);
 
-        // cudaMemcpy(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
-        // memcpy(offset_result_array_ptr, pinned_frame_result, gpu_particles_buffer_size);  // Bottleneck?!?! Use another cpu thread for this?
+        cudaStreamSynchronize(exec_stream);  // Wait for read_tree
+
+        if (timestep != 0) {
+            copy_pinned_to_paged_thread.join();
+        }
+
+        cudaMemcpy(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
+
+        // Create thread to copy result
+        copy_pinned_to_paged_thread = std::thread(copy_pinned_to_paged);
     }
 
-    // Make sure all streams are done
+    // Make sure all streams/operations are done
     cudaDeviceSynchronize();
+    copy_pinned_to_paged_thread.join();
 
     // Finalize mld calculations
     divide_mld<<<mld_grid_dim, mld_block_dim>>>(mld_buffer, number_of_timesteps, particle_count);
@@ -513,6 +538,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
 
     // Cleanup
     cudaStreamDestroy(mem_stream);
+    cudaStreamDestroy(exec_stream);
     cudaFree(gpu_tree_buffer);
     cudaFree(used_tree_buffer_size);
     cudaFree(gpu_particles_buffer);
@@ -520,6 +546,8 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     cudaFree(rnd_state);
     cudaFree(gpu_static_tree_buffer);
     cudaFreeHost(pinned_used_buffer_size);
+    cudaFreeHost(pinned_static_tree_buffer_size_ints);
+    cudaFreeHost(pinned_frame_result);
 
     return py::make_tuple(mld_result_array, result_array);
 }
