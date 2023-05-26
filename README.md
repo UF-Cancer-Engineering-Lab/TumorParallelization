@@ -32,11 +32,10 @@ Run tests.py `python tests.py`
 
 # Making executable
 
-(Windows only right now...)<br/>
-
-- Run make_executable.bat
-- Copy scene and config folder into `dist` folder
-- Copy dist folder wherever desired and run program.exe
+- Run `make_executable.bat` (windows) or `make_executable.sh` (linux)
+- Copy contents of dist folder wherever desired and run `program`
+- To change configuration modify `dist/config/config.json`
+- To add scene modify `dist/scenes/scene_name.json`
 
 # Making changes to CUDA Code
 
