@@ -72,7 +72,7 @@ void h_clear_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, unsigned int
 void h_build_tree(int* gpu_tree_buffer, int* used_tree_buffer_size, int* gpu_particles_buffer, curandState* rnd_state, unsigned int tree_buffer_size_nodes, int number_of_particles, int particle_type, float bound_range, int max_tries, bool random_walk, cudaStream_t stream = NULL);
 void h_read_tree(int* gpu_tree_buffer, int* gpu_particles_buffer, int used_tree_buffer_size, int tree_buffer_size_nodes, cudaStream_t stream = NULL);
 void h_sum_mld(float* mld_buffer, int* gpu_particles_buffer, int* gpu_init_particles_buffer, int timestep, int particle_count, cudaStream_t stream = NULL);
-py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes);
+py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes, int recording_interval);
 
 PYBIND11_MODULE(cuda_kernels, m) {
     m.def("walk_particles_gpu", &walk_particles_gpu, "Perform the walk particles gpu sim",
@@ -83,5 +83,6 @@ PYBIND11_MODULE(cuda_kernels, m) {
           py::arg("max_tries") = 6,
           py::arg("random_walk") = true,
           py::arg("return_gpu_tree_buffer") = false,
-          py::arg("tree_buffer_size_nodes") = 10000000);
+          py::arg("tree_buffer_size_nodes") = 10000000,
+          py::arg("recording_interval") = 1);
 }

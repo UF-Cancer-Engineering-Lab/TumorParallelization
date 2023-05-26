@@ -24,4 +24,5 @@ def walkParticlesGPU(
         boundRange,
         maxTries,
         tree_buffer_size_nodes=NODE_COUNT,
+        recording_interval=recording_interval,
     )

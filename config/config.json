@@ -1,5 +1,5 @@
 {
-    "n": 1000,
+    "n": 100000,
     "maxTries": 6,
     "particlesNumber": 1,
     "porosityFraction": 0.05,
@@ -9,5 +9,6 @@
     "show3DVisualization": false,
     "outPath": "./output2/",
     "scene_file_name": "test_scene",
-    "max_vram_allocation_gb": 0.5
+    "max_vram_allocation_gb": 0.5,
+    "recording_interval": 100
 }

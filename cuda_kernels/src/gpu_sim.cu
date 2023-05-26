@@ -371,7 +371,7 @@ void h_sum_mld(float *mld_buffer, int *gpu_particles_buffer, int *gpu_init_parti
     sum_mld<<<grid_dim, block_dim, 0, stream>>>(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count);
 }
 
-py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes) {
+py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int> boundary_particles, int number_of_timesteps, float bound_range, int max_tries, bool random_walk, bool return_gpu_tree_buffer, int tree_buffer_size_nodes, int recording_interval) {
     // Create gpu tree buffer
     int *gpu_tree_buffer = nullptr;
     size_t gpu_tree_buffer_size = tree_buffer_size_nodes * NODE_SIZE_BYTES;
@@ -393,7 +393,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     cudaMemcpy(gpu_init_particles_buffer, initial_particles_ptr, gpu_particles_buffer_size, cudaMemcpyHostToDevice);
 
     // Create numpy list to hold results
-    std::vector<size_t> shape = {number_of_timesteps * particle_count * 3};
+    std::vector<size_t> shape = {(number_of_timesteps / recording_interval) * particle_count * 3};
     py::array_t<int> result_array(shape);
     int *result_array_ptr = static_cast<int *>(result_array.request().ptr);
 
@@ -491,18 +491,21 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
         h_read_tree(gpu_tree_buffer, gpu_particles_buffer, pinned_used_buffer_size[0], tree_buffer_size_nodes, exec_stream);
 
         // Move data from gpu to host
-        offset_result_array_ptr = result_array_ptr + (timestep * particle_count * 3);
+        offset_result_array_ptr = result_array_ptr + ((timestep / recording_interval) * particle_count * 3);
 
         cudaStreamSynchronize(exec_stream);  // Wait for read_tree
 
-        if (timestep != 0) {
-            copy_pinned_to_paged_thread.join();
+        // Recording interval to reduce memory footprint of result
+        if (timestep % recording_interval == 0) {
+            if (timestep != 0) {
+                copy_pinned_to_paged_thread.join();
+            }
+
+            cudaMemcpyAsync(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost, mem_stream);
+
+            // Create thread to copy result
+            copy_pinned_to_paged_thread = std::thread(copy_pinned_to_paged);
         }
-
-        cudaMemcpyAsync(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost, mem_stream);
-
-        // Create thread to copy result
-        copy_pinned_to_paged_thread = std::thread(copy_pinned_to_paged);
     }
 
     // Make sure all streams/operations are done
@@ -513,8 +516,10 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     divide_mld<<<mld_grid_dim, mld_block_dim>>>(mld_buffer, number_of_timesteps, particle_count);
     cudaMemcpy(mld_result_array_ptr, mld_buffer, mld_buffer_size, cudaMemcpyDeviceToHost);
 
+    std::cout << "Finished Running kernels;";
+
     // Change windowing for python numpy array
-    result_array.resize({(size_t)number_of_timesteps, (size_t)particle_count, (size_t)3});
+    result_array.resize({(size_t)(number_of_timesteps / recording_interval), (size_t)particle_count, (size_t)3});
 
     // Only used for testing
     if (return_gpu_tree_buffer) {
