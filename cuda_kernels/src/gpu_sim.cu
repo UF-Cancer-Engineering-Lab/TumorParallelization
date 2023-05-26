@@ -48,7 +48,6 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
 
     if (tid < number_of_particles) {
         // State of particle
-        bool inserted_particle = false;
         int particle_buffer_pos = tid * PARTICLE_SIZE_INT;
         int original_particle_position[PARTICLE_SIZE_INT];
         int walked_particle_position[PARTICLE_SIZE_INT];
@@ -58,7 +57,7 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
         int tries_left = max_tries;
         curandState local_rnd_state = rnd_state[tid];
 
-        while (!inserted_particle && tries_left > 0) {
+        while (tries_left > 0) {
             // Walk the particle (randomize position) (for now write original)
             randomize_particle_position(walked_particle_position, original_particle_position, &local_rnd_state, random_walk);
 
@@ -77,7 +76,7 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                         int octant_offset = get_next_octant(walked_particle_position, bound_start, curr_bound_range);
                         curr_tree_pos = gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] + octant_offset * NODE_SIZE_INT;
                         update_bound_start(bound_start, curr_bound_range, octant_offset);
-                        curr_bound_range /= 2.0;
+                        curr_bound_range *= 0.5;
                     }
                     // If leaf get lock and insert here
                     if (UNLOCKED == atomicCAS(&gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET], UNLOCKED, tid)) {
@@ -94,7 +93,7 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                             gpu_tree_buffer[curr_tree_pos + TREE_Z_OFFSET] = walked_particle_position[PARTICLE_Z_OFFSET];
                             gpu_tree_buffer[curr_tree_pos + TREE_TYPE_OFFSET] = particle_type;
                             gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] = PARTICLE_NO_CHILD;
-                            inserted_particle = true;
+                            tries_left = 0;
 
                             // Ensure writes are visible to other threads and free lock
                             __threadfence();
@@ -119,9 +118,11 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                             } else {
                                 int offset_existing = 0;
                                 int offset_new = 0;
-                                int subtree_index = curr_tree_pos;
 
                                 while (offset_existing == offset_new) {
+                                    // Move curr_tree_pos to correct offset from prev iteration
+                                    curr_tree_pos += offset_existing * NODE_SIZE_INT;
+
                                     // Determine octant to place particles at next subdivision
                                     offset_existing = get_next_octant(existing_particle_position, bound_start, curr_bound_range);
                                     offset_new = get_next_octant(walked_particle_position, bound_start, curr_bound_range);
@@ -133,27 +134,21 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                                     int child_level_pos = atomicAdd(&used_tree_buffer_size[0], subdivision_space_needed);
 
                                     // Lock child, then release parent as non-leaf
-                                    // atomicCAS(&gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_existing + TREE_LOCK_OFFSET], UNLOCKED, tid);
-                                    // atomicCAS(&gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_new + TREE_LOCK_OFFSET], UNLOCKED, tid);
-                                    // gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] = child_level_pos;
-                                    // gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET] = NON_LEAF;
-
-                                    gpu_tree_buffer[subtree_index + TREE_CHILD_OFFSET] = child_level_pos;
-                                    if (subtree_index != curr_tree_pos) {
-                                        gpu_tree_buffer[subtree_index + TREE_LOCK_OFFSET] = NON_LEAF;
-                                    }
+                                    // atomicExch(&gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_existing + TREE_LOCK_OFFSET], tid);
+                                    // atomicExch(&gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_new + TREE_LOCK_OFFSET], tid);
+                                    // atomicExch(&gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET], child_level_pos);
+                                    // __threadfence();
+                                    // atomicExch(&gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET], NON_LEAF);
+                                    gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_existing + TREE_LOCK_OFFSET] = tid;
+                                    gpu_tree_buffer[child_level_pos + NODE_SIZE_INT * offset_new + TREE_LOCK_OFFSET] = tid;
+                                    gpu_tree_buffer[curr_tree_pos + TREE_CHILD_OFFSET] = child_level_pos;
+                                    __threadfence();
+                                    gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET] = NON_LEAF;
 
                                     // Subdivide bounds for next subdivision
-                                    // curr_tree_pos = child_level_pos;
-                                    // update_bound_start(bound_start, curr_bound_range, offset_existing);
-                                    // curr_bound_range /= 2.0;
-
-                                    subtree_index = child_level_pos;
-                                    if (offset_existing == offset_new) {
-                                        subtree_index += NODE_SIZE_INT * offset_existing;
-                                    }
+                                    curr_tree_pos = child_level_pos;
                                     update_bound_start(bound_start, curr_bound_range, offset_existing);
-                                    curr_bound_range /= 2.0;
+                                    curr_bound_range *= 0.5;
                                 }
 
                                 // DEBUG
@@ -166,8 +161,7 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                                 // Write particle positions into tree buffer and unlock
 
                                 // Existing
-                                // int existing_tree_pos = curr_tree_pos + offset_existing * NODE_SIZE_INT;
-                                int existing_tree_pos = subtree_index + offset_existing * NODE_SIZE_INT;
+                                int existing_tree_pos = curr_tree_pos + offset_existing * NODE_SIZE_INT;
                                 gpu_tree_buffer[existing_tree_pos + TREE_ID_OFFSET] = existing_particle_id;
                                 gpu_tree_buffer[existing_tree_pos + TREE_X_OFFSET] = existing_particle_position[0];
                                 gpu_tree_buffer[existing_tree_pos + TREE_Y_OFFSET] = existing_particle_position[1];
@@ -176,8 +170,7 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                                 gpu_tree_buffer[existing_tree_pos + TREE_CHILD_OFFSET] = PARTICLE_NO_CHILD;
 
                                 // New
-                                // int new_tree_pos = curr_tree_pos + offset_new * NODE_SIZE_INT;
-                                int new_tree_pos = subtree_index + offset_new * NODE_SIZE_INT;
+                                int new_tree_pos = curr_tree_pos + offset_new * NODE_SIZE_INT;
                                 gpu_tree_buffer[new_tree_pos + TREE_ID_OFFSET] = tid;
                                 gpu_tree_buffer[new_tree_pos + TREE_X_OFFSET] = walked_particle_position[0];
                                 gpu_tree_buffer[new_tree_pos + TREE_Y_OFFSET] = walked_particle_position[1];
@@ -186,14 +179,10 @@ __global__ void build_tree(int *gpu_tree_buffer, int *used_tree_buffer_size, con
                                 gpu_tree_buffer[new_tree_pos + TREE_CHILD_OFFSET] = PARTICLE_NO_CHILD;
 
                                 // Release locks
-                                // __threadfence();
-                                // gpu_tree_buffer[existing_tree_pos + TREE_LOCK_OFFSET] = UNLOCKED;
-                                // gpu_tree_buffer[new_tree_pos + TREE_LOCK_OFFSET] = UNLOCKED;
-                                // inserted_particle = true;
-
                                 __threadfence();
-                                gpu_tree_buffer[curr_tree_pos + TREE_LOCK_OFFSET] = NON_LEAF;
-                                inserted_particle = true;
+                                gpu_tree_buffer[existing_tree_pos + TREE_LOCK_OFFSET] = UNLOCKED;
+                                gpu_tree_buffer[new_tree_pos + TREE_LOCK_OFFSET] = UNLOCKED;
+                                tries_left = 0;
                             }
                         }
                         completed_insert_attempt = true;
