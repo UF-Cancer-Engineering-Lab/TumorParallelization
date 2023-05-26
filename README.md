@@ -2,7 +2,7 @@ Tumor Paralleization research Git
 
 # SETUP INSTRUCTIONS
 
-0. Clone repository<br/>
+0. Clone repository (RECURSIVELY!)<br/>
    `git clone git@github.com:UF-Cancer-Engineering-Lab/TumorParallelization.git --recursive`<br/>
    `cd ./TumorParallelization`
 
@@ -22,7 +22,7 @@ Tumor Paralleization research Git
    `compile_cuda_kernels.bat` (Windows)<br/>
    `chmod +x compile_cuda_kernels.sh && ./compile_cuda_kernels.sh` (Linux)
 
-6. Go to config.py and change parameters as desired
+6. Go to config/config.json and change parameters as desired
 
 7. Run program.py
 
