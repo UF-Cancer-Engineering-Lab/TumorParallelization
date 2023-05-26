@@ -461,7 +461,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     // Streams to overlap data transfers with kernel executions
     cudaStream_t mem_stream;
     cudaStreamCreate(&mem_stream);
-    cudaStream_t exec_stream;
+    cudaStream_t exec_stream;  // Also used for device to device to allow parallel copies
     cudaStreamCreate(&exec_stream);
 
     cudaDeviceSynchronize();
@@ -477,7 +477,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
     for (int timestep = 0; timestep < number_of_timesteps; timestep++) {
         // Setup static tree
         cudaMemcpyAsync(used_tree_buffer_size, pinned_static_tree_buffer_size_ints, sizeof(int), cudaMemcpyHostToDevice, mem_stream);
-        cudaMemcpyAsync(gpu_tree_buffer, gpu_static_tree_buffer, pinned_used_buffer_size[0] * sizeof(int), cudaMemcpyDeviceToDevice, mem_stream);
+        cudaMemcpyAsync(gpu_tree_buffer, gpu_static_tree_buffer, pinned_used_buffer_size[0] * sizeof(int), cudaMemcpyDeviceToDevice, exec_stream);
 
         // Perform MLD while data is transferred
         h_sum_mld(mld_buffer, gpu_particles_buffer, gpu_init_particles_buffer, timestep, particle_count, exec_stream);
@@ -499,7 +499,7 @@ py::tuple walk_particles_gpu(py::array_t<int> initial_particles, py::array_t<int
             copy_pinned_to_paged_thread.join();
         }
 
-        cudaMemcpy(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost);
+        cudaMemcpyAsync(pinned_frame_result, gpu_particles_buffer, gpu_particles_buffer_size, cudaMemcpyDeviceToHost, mem_stream);
 
         // Create thread to copy result
         copy_pinned_to_paged_thread = std::thread(copy_pinned_to_paged);
