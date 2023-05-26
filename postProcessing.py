@@ -15,12 +15,11 @@ import os
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def plotCellData(particles):
-    particlesDF = particlesToDF(particles)
     fig = go.Figure(
         data=go.Scatter3d(
-            x=[],
-            y=[],
-            z=[],
+            x=particles[0][:, 0],
+            y=particles[0][:, 1],
+            z=particles[0][:, 2],
             marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
             opacity=0.8,
             mode="markers",
@@ -31,15 +30,15 @@ def plotCellData(particles):
         go.Frame(
             data=[
                 go.Scatter3d(
-                    x=particlesDF[frame]["x"],
-                    y=particlesDF[frame]["y"],
-                    z=particlesDF[frame]["z"],
+                    x=particles[frame][:, 0],
+                    y=particles[frame][:, 1],
+                    z=particles[frame][:, 2],
                 )
             ],
             traces=[0],
             name=f"frame{frame}",
         )
-        for frame in range(len(particlesDF))
+        for frame in range(len(particles))
     ]
     fig.update(frames=frames)
 
