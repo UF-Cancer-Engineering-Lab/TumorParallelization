@@ -20,9 +20,9 @@ def plotCellData(particles, scene: Scene):
     fig = go.Figure(
         data=[
             go.Scatter3d(
-                x=particles[0][:, 0],
-                y=particles[0][:, 1],
-                z=particles[0][:, 2],
+                x=particles[1][:, 0],
+                y=particles[1][:, 1],
+                z=particles[1][:, 2],
                 marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
                 opacity=0.8,
                 mode="markers",
@@ -48,12 +48,14 @@ def plotCellData(particles, scene: Scene):
                     y=particles[frame][:, 1],
                     z=particles[frame][:, 2],
                 ),
-                go.Scatter3d(boundaries[:, 0], boundaries[:, 1], boundaries[:, 2]),
+                go.Scatter3d(
+                    x=boundaries[:, 0], y=boundaries[:, 1], z=boundaries[:, 2]
+                ),
             ],
             traces=[0, 1],
             name=f"frame{frame}",
         )
-        for frame in range(len(particles))
+        for frame in range(1, len(particles))
     ]
     fig.update(frames=frames)
 
