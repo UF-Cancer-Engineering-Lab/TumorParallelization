@@ -9,11 +9,11 @@ import numpy as np
 import random
 import pandas
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 from config import *
 from numba import jit
 from octTreeCPU import *
 from util import particlesToDF
+
 
 # -----------------------------------------functions for walk algorithms: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 def getInitialSphere(
@@ -29,7 +29,6 @@ def getInitialSphereNumpy(
     porosityFraction=porosityFraction,
     sphereRadius=sphereRadius,
 ):
-
     # child variables
     vacancies = round(particlesNumber * porosityFraction)
     totalPositions = particlesNumber + vacancies
@@ -45,23 +44,10 @@ def getInitialSphereNumpy(
     # of which there are ~840, will be the vector components of a vector whose magnitude is an integer, conforming to a radius of a smaller sphere than the original one
     # set in the limit
     # initialSphere.index returns total rows in the initialSphere dataFrame
-    while (
-        len(initialSphere) < totalPositions
-    ):  # len(initialSphere.index) is the number of total rows in the DataFrame
-        # print("Loading initial sphere")
-        sphereRadius = sphereRadius
-        for z in range(-sphereRadius, sphereRadius):
-            xMax = int(
-                math.sqrt(sphereRadius**2 - z**2 - 0**2)
-            )  # initially z = -6 #these xMax values appy for
-            # print(z)
-            for x in range(-xMax, xMax):
-                yMax = int(math.sqrt(sphereRadius**2 - z**2 - x**2))
-                # print(x,yMax)
-                for y in range(-yMax, yMax):
-                    # initialSphere = initialSphere.append(
-                    #     , ignore_index=True
-                    # )
+    for x in range(-sphereRadius, sphereRadius):
+        for y in range(-sphereRadius, sphereRadius):
+            for z in range(-sphereRadius, sphereRadius):
+                if math.sqrt(x**2 + y**2 + z**2) <= sphereRadius:
                     initialSphere.append([np.int32(x), np.int32(y), np.int32(z)])
 
     totalPositions = len(initialSphere)
@@ -83,7 +69,6 @@ def randomWalkCPU(
     maxTries=maxTries,
     sphereRadius=sphereRadius,
 ):
-
     # Constraints for cell movement
     squaredRadius = sphereRadius**2
     squaredCapillaryRadius = capillaryRadius**2
@@ -153,7 +138,6 @@ def randomWalkCPUOctTree(
     maxTries=maxTries,
     sphereRadius=sphereRadius,
 ):
-
     # Constraints for cell movement
     squaredRadius = sphereRadius**2
     squaredCapillaryRadius = capillaryRadius**2

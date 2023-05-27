@@ -4,10 +4,13 @@ from postProcessing import *
 import time
 import plotly.graph_objects as go
 
+from scene import load_scene
+
 n = 1000
 sphereRadiusList = range(1, 50)
 algorithms = [walkParticlesGPU]
 timings = []
+scene = load_scene("empty_scene")
 
 # Note, this disregards other parts of pipeline that were moved to the GPU, like calculateLinearDistanceGPU
 for algorithmIndex, algorithm in enumerate(algorithms):
@@ -23,7 +26,7 @@ for algorithmIndex, algorithm in enumerate(algorithms):
         )
         initialSphere = getInitialSphereNumpy(sphereRadius=sphereRadius)
         startTime = time.perf_counter()
-        particles = algorithm(initialSphere, n=n, sphereRadius=sphereRadius)
+        particles = algorithm(initialSphere, scene, n=n, sphereRadius=sphereRadius)
         endTime = time.perf_counter()
         timings[algorithmIndex].append(endTime - startTime)
 

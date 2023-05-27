@@ -1,3 +1,25 @@
 {
-  "python.formatting.provider": "black"
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "files.associations": {
+    "filesystem": "cpp",
+    "atomic": "cpp",
+    "ostream": "cpp",
+    "deque": "cpp",
+    "forward_list": "cpp",
+    "list": "cpp",
+    "valarray": "cpp",
+    "vector": "cpp",
+    "xstring": "cpp",
+    "iostream": "cpp",
+    "complex": "cpp",
+    "iosfwd": "cpp",
+    "xlocbuf": "cpp",
+    "random": "cpp",
+    "tuple": "cpp",
+    "system_error": "cpp",
+    "thread": "cpp"
+  }
 }
