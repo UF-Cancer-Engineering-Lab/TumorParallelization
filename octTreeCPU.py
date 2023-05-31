@@ -77,6 +77,21 @@ class TreeNode:
                     return True
             return False  # Duplicate recieved from child node
 
+    def contains(self, position):
+        if not self.particleInBounds(position):
+            return False
+
+        if self.particlePosition is None:
+            return False
+
+        if len(self.children) == 0:
+            return (position == self.particlePosition).all()
+
+        found = False
+        for child in self.children:
+            found = found or child.contains(position)
+        return found
+
 
 # particles is expected to be a DF
 def buildTreeCPU(

@@ -3,12 +3,12 @@
     "maxTries": 6,
     "particlesNumber": 1,
     "porosityFraction": 0.05,
-    "sphereRadius": 20,
+    "sphereRadius": 3,
     "shouldSaveResults": false,
     "showMLDVisualization": true,
     "show3DVisualization": true,
     "outPath": "./output2/",
-    "scene_file_name": "test_scene",
+    "scene_file_name": "sphere",
     "max_vram_allocation_gb": 0.5,
     "recording_interval": 1
 }

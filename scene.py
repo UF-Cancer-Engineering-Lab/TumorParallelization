@@ -38,3 +38,17 @@ def load_scene(scene_path: str) -> Scene:
     scene_path = "./scenes/" + scene_path.replace(".json", "") + ".json"
     json_data = json.load(open(scene_path))
     return Scene(json_data)
+
+
+def write_particles_to_scene(filename, boundary):
+    scene_path = "./scenes/" + filename.replace(".json", "") + ".json"
+    dict = {
+        "boundaries": [
+            {"x": int(particle[0]), "y": int(particle[1]), "z": int(particle[2])}
+            for particle in boundary
+        ]
+    }
+
+    json_obj = json.dumps(dict)
+    with open(scene_path, "w") as outfile:
+        outfile.write(json_obj)
