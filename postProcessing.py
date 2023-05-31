@@ -11,19 +11,33 @@ import numpy as np
 import math
 from util import particlesToDF
 import os
+from scene import Scene
 
 
 # -----------------------------------------plotting stuff: --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def plotCellData(particles):
+def plotCellData(particles, scene: Scene):
+    boundaries = scene.get_boundaries_numpy()
     fig = go.Figure(
-        data=go.Scatter3d(
-            x=particles[0][:, 0],
-            y=particles[0][:, 1],
-            z=particles[0][:, 2],
-            marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
-            opacity=0.8,
-            mode="markers",
-        ),
+        data=[
+            go.Scatter3d(
+                x=particles[1][:, 0],
+                y=particles[1][:, 1],
+                z=particles[1][:, 2],
+                marker=go.scatter3d.Marker(size=3, colorscale="Viridis", opacity=0.8),
+                opacity=0.8,
+                mode="markers",
+                name="particles",
+            ),
+            go.Scatter3d(
+                x=boundaries[:, 0],
+                y=boundaries[:, 1],
+                z=boundaries[:, 2],
+                marker=go.scatter3d.Marker(size=3, color="red", opacity=0.8),
+                opacity=0.8,
+                mode="markers",
+                name="boundaries",
+            ),
+        ],
     )
 
     frames = [
@@ -33,12 +47,15 @@ def plotCellData(particles):
                     x=particles[frame][:, 0],
                     y=particles[frame][:, 1],
                     z=particles[frame][:, 2],
-                )
+                ),
+                go.Scatter3d(
+                    x=boundaries[:, 0], y=boundaries[:, 1], z=boundaries[:, 2]
+                ),
             ],
-            traces=[0],
+            traces=[0, 1],
             name=f"frame{frame}",
         )
-        for frame in range(len(particles))
+        for frame in range(1, len(particles))
     ]
     fig.update(frames=frames)
 
